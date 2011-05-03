@@ -39,6 +39,7 @@ module Nrrd
     end
     puts "#{cmd}" if Debug
     system(cmd)
+    puts ""
   end
 
   # return hashes of header values for nrrd file
@@ -60,7 +61,8 @@ module Nrrd
   end
 
   # return an array of the number of planes in each of the given files
-  def self.get_planes(files)
+  def self.get_planes(files)  
+    files.delete_if {|file| file.eql?("-")}
     files.map { |file| head(file)[:nrrd]["sizes"].split(' ')[Axes[:z]].to_i }
   end
 
@@ -79,13 +81,22 @@ module Nrrd
   # Compress input file by summing along Z (and then reinserting the Z axis).
   def self.compress(file_in, file_out=nil, axis=Axes[:z])
     file_out ||= file_in
-    unu_call("project -a #{axis} -m sum -t uint16 -i \"#{file_in}\" | unu axinsert -a #{axis} -o \"#{file_out}\"")
+    #unu_call("project -a #{axis} -m sum -t uint16 -i \"#{file_in}\" | unu axinsert -a #{axis} -o \"#{file_out}\"")
+    unu_call("project -a #{axis} -m sum -i \"#{file_in}\" | unu axinsert -a #{axis} -o \"#{file_out}\"")
   end
 
   # Divide input file by a given value (or another file).
   def self.divide(file_in, value, file_out=nil)
     file_out ||= file_in
-    unu_call("2op / \"#{file_in}\" #{value} -t uint16 -o \"#{file_out}\"")
+    #unu_call("2op / \"#{file_in}\" #{value} -t uint16 -o \"#{file_out}\"")
+    unu_call("2op / \"#{file_in}\" #{value} -o \"#{file_out}\"")
+  end
+  
+  # Multiply input file by a given value (or another file).
+  def self.multiply(file_in, value, file_out=nil)
+    file_out ||= file_in
+    #unu_call("2op x \"#{file_in}\" #{value} -t uint16 -o \"#{file_out}\"")
+    unu_call("2op x \"#{file_in}\" #{value} -o \"#{file_out}\"")
   end
 
   # Join a set of nrrd files along a given axis.
@@ -96,7 +107,7 @@ module Nrrd
     join_opts["input"] = files_in.join(' ')
     join_opts["axis"]  = axis
     data_opts[""] = "-"
-    make_opts["type"]      = "uint16"
+    #make_opts["type"]      = "uint16"
     make_opts["encoding"]  = "raw"
     make_opts["endian"]    = "little"
     make_opts["size"]      = sizes.join(' ')
@@ -144,6 +155,7 @@ def group_masses(fileset, masses, suffix_out="tmp")
       end
       Nrrd.join(tmps, "#{file}.#{suffix_out}", Axes[:mass], sizes, header[:meta])
       tmps.each {|tmp| File.delete(tmp) }
+      
       file_out
     end
   end
@@ -168,17 +180,21 @@ def normalize(fileset, opts={})
   opts[:scale_by_planes] ||= false
   opts[:suffix_out]      ||= "normalized"
   max_planes = Nrrd.get_planes(fileset.flatten).sort.last
-  fileset.map do |files|
+  fileset.map do |files|    
     files.map do |file|
-      sizes = Nrrd.head(file)[:nrrd]["sizes"].split(' ')
-      file_out = "#{file}.#{opts[:suffix_out]}"
-      if opts[:compress] # sum along z-axis
-        Nrrd.compress(file, file_out)
-        scale_factor = sizes[Axes[:z]].to_f/max_planes
-        Nrrd.divide(file_out, scale_factor) if opts[:scale_by_planes]
-      else # otherwise, pad in z
-        sizes[Axes[:z]] = max_planes
-        Nrrd.pad(file, file_out, sizes.map{|x| x.to_i-1})
+      if File.basename(file).eql?("-")
+         file_out = "#{file}"
+      else
+         file_out = "#{file}.#{opts[:suffix_out]}"
+         sizes = Nrrd.head(file)[:nrrd]["sizes"].split(' ')      
+         if opts[:compress] # sum along z-axis
+            Nrrd.compress(file, file_out)
+            scale_factor = sizes[Axes[:z]].to_f/max_planes
+            Nrrd.divide(file_out, scale_factor) if opts[:scale_by_planes]
+         else # otherwise, pad in z
+            sizes[Axes[:z]] = max_planes
+            Nrrd.pad(file, file_out, sizes.map{|x| x.to_i-1})
+         end
       end
       file_out
     end
@@ -189,12 +205,37 @@ end
 # (Assumes dimensions already match between files.)
 # Returns the output filename.
 def tile(fileset, file_out)
-  header  = Nrrd.head(fileset[0][0])
+  header = []
+  ref_file = ""
+  background_image_created = false
+  # get a legit header
+  fileset.each do |filenames|
+    filenames.each do |file|
+      if File.exists?(file)
+          header  = Nrrd.head(file)
+          ref_file = file
+          break
+      end
+    end
+  end
   size    = header[:nrrd]["sizes"].split(' ').map{|x| x.to_i}
   rows    = fileset.each_index.map {|i| "row#{i+1}.nrrd"}
   max_row = fileset.map {|row| row.length}.sort.last
+  
+  # create a background image if necessary
+  fileset.each do |filenames|
+    if filenames.include?("-")
+       Nrrd.multiply(ref_file, 0, "background.nrrd")
+       background_image_created = true
+       break
+    end
+  end
+  
   x = Axes[:x]; y = Axes[:y]
   fileset.each_index do |i|
+    while fileset[i].index("-") != nil
+       fileset[i][fileset[i].index("-")] = "background.nrrd"
+    end
     size_row = size.clone
     size_row[x] = size[x]*fileset[i].length
     Nrrd.join(fileset[i], rows[i], x, size_row)
@@ -204,6 +245,11 @@ def tile(fileset, file_out)
   size[x] *= max_row
   size[y] *= fileset.length
   Nrrd.join(rows, file_out, y, size, header[:meta])
+  if background_image_created
+    File.delete("background.nrrd")
+  end
+  fileset.each_index.map {|i| File.delete("row#{i+1}.nrrd")}
+  
   file_out
 end
 
@@ -212,21 +258,28 @@ end
 # Returns an array of arrays of filenames.
 def load_layout(filename, delim_col = "\t", delim_row = $/)
   dir = File.dirname(Pathname.new(filename).realpath.to_s)
-  fileset = File.open(filename,'r') {|f| f.read }.split(delim_row).map{|r| r.split(delim_col)}
-  unless Pathname.new(fileset[0][0]).absolute?
-    fileset.map! {|files| files.map! {|f| "#{dir}/#{f}"}}
+  fileset = File.open(filename,'r') {|f| f.read }.split(delim_row).map{|r| r.split(delim_col)}  
+  unless Pathname.new(fileset[0][0]).absolute? 
+    fileset.map! {|files| files.map! {|f| 
+      if !f.eql?("-")
+        "#{dir}/#{f}"
+      else
+        "#{f}"
+      end}
+    }
   end
 end
 
 # Return array of relative (to top left) horizontal and vertical positions, in pixels, for the given nrrd files.
-def get_pixel_positions(files)
+def get_pixel_positions(files, prototype)
   positions    = []
   um_per_px    = []
-
-  # The horizontal direction was switched some time after 090609 but before 090706
-  date_str = Nrrd.head(files[0])[:meta]["Mims_date"].split('.').reverse * '-'
-  horizontal_direction = Date.parse(date_str,true) < Date.parse('2009-07-01') ? -1 : 1
-
+  
+  horizontal_direction = 1
+  if prototype
+    horizontal_direction = -1 
+  end
+      
   files.each do |file|
     mims = Nrrd.head(file)[:meta]
     positions << mims["Mims_position"].split(',').reverse.map{|c| c.to_i}
@@ -241,11 +294,14 @@ def get_pixel_positions(files)
 end
 
 # Return array of min and max strings for padding the given nrrd files.
-def get_pad_values(files)
-  pos_pixels = get_pixel_positions(files)
+def get_pad_values(files, compress, prototype)
+  pos_pixels = get_pixel_positions(files, prototype)
   max_px     = pos_pixels.transpose.map{|x| x.sort.last}
   maxes      = files.map { |f| Nrrd.head(f)[:nrrd]["sizes"].split(' ').map{|s| s.to_i - 1} }
-  max_planes = maxes.transpose[Axes[:z]].sort.last
+  max_planes = 0
+  if !compress
+     max_planes = maxes.transpose[Axes[:z]].sort.last
+  end   
   maxes.map {|max| max[Axes[:z]] = max_planes}
 
   pos_pixels.zip(maxes).map do |pix, max|
@@ -265,6 +321,12 @@ def merge(files, pads, file_out)
   file_out
 end
 
+# Clean up any temp files.
+def cleanup()
+   Dir.glob("*.nrrd.normalized"){|file| File.delete(file)}
+	Dir.glob("row*.nrrd"){|file| File.delete(file)}
+end
+
 # Combine a set of nrrd files into one, in one of two ways:
 # * by joining files specified in layout file opts[:layout] together in X and Y.
 # * by padding opts[:files] with extra space in X and Y and then summing together.
@@ -275,11 +337,12 @@ def mosaic(opts)
     files2 = normalize(files2, opts)
     tile(files2, opts[:file_out])
   else
-    pads = get_pad_values(opts[:files])
+    pads = get_pad_values(opts[:files], opts[:compress], opts[:prototype])
     files = group_masses(opts[:files], opts[:masses])
     files = normalize([files], opts)[0]
     merge(files, pads, opts[:file_out])
   end
+  cleanup()
 end
 
 ##############
@@ -289,30 +352,45 @@ def main(args)
   options = {}
   parser = OptionParser.new do |opts|
     opts.banner = "Usage: #{File.basename($0)} [options] file1.nrrd file2.nrrd ..."
-    opts.on("-t", "--type mosaic_type", [:grid, :fluid], "Choose type of mosaic to create ('grid' or 'fluid')") {|t| options[:type] = t}
-    opts.on("-c", "--[no-]compress", "Compress each input file to a single-plane image") { |c| options[:compress] = c }
-    opts.on("-s", "--[no-]scale", "Scale counts by number of planes in each input file") { |s| options[:scale_by_planes] = s }
-    opts.on("-l", "--layout file", "Specify grid layout file",
+    opts.on("-t", "--type mosaic_type", [:grid, :fluid], "Choose type of mosaic to create ('grid' or 'fluid').") {|t| options[:type] = t}
+    opts.on("-p", "Data from prototype, reverse x-axis ('fluid' mode only).") {|p| options[:prototype] = true}
+    opts.on("-c", "--[no-]compress", "Compress each input file to a single-plane image.") { |c| options[:compress] = c }
+    opts.on("-s", "--[no-]scale", "Scale counts by number of planes in each input file.") { |s| options[:scale_by_planes] = s }
+    opts.on("-l", "--layout file", "Specify grid layout file.",
             "  (A text file containg input nrrd filenames; columns tab-separated, rows newline-separated)") { |f| options[:layout] = f }
-    opts.on("-o", "--output file", "Specify output nrrd file") { |f| options[:file_out] = f }
-    opts.on_tail("-h", "--help", "Show this help message") {STDERR.puts opts; exit}
+    opts.on("-o", "--output file", "Specify output nrrd file.") { |f| options[:file_out] = f }
+    opts.on_tail("-h", "--help", "Show this help message.") {STDERR.puts opts; exit}
   end
   if args.empty?
     STDERR.puts parser
     exit
   end
   parser.parse!(args)
-
   options[:files] = args unless args.empty?
   options[:file_out] ||= "mosaic.nrrd"
+  
   unless options[:type]
     options[:type] = :grid
     options[:type] = :fluid if options[:files]
   end
-  options[:layout] ||= "layout.dat" if options[:type] == :grid
+  
+  if options[:compress].nil?
+     options[:compress] = true
+  end
+  
+  if options[:prototype].nil? || options[:type] == :grid
+     options[:prototype] = false
+  end  
+  
+  options[:layout] ||= "grid.txt" if options[:type] == :grid
 
   mosaic(options)
   #chip6(options)
 end
 
+# Returns number of seconds since epoch
+time1 = Time.now.to_i
 main(ARGV) if __FILE__ == $0
+time2 = Time.now.to_i
+time_diff = time2 - time1
+print "TOTAL_time = ", time_diff, " seconds.\n"
