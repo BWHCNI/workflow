@@ -1,0 +1,228 @@
+#!/bin/bash
+
+##########################################################
+## The "transfer_50L" script copies IM files from one
+## location to another. It will also convert the IM file
+## to a NRRD file. Depending on the settings of the config 
+## file, the image will be tracked and PNG images will be
+## generated for use in a tracking document.
+##
+## Print help.
+##
+##		transfer -h
+##
+## The following is an explanation of some member variables.
+##
+## 	- EXTENSION: Only files of type EXTENSION are copied.
+## 	- FILTER_STRING: Does not copy files containing FILTER_STRING.
+## 	- SLEEP_TIME: Time to wait between file size checks. Used to see if still acquiring data.
+##    - TRACK_DEFAULT: The dafault mass to track
+##    - CONFIG_FILE:  The location of the default config file.
+##########################################################
+
+CONFIG_FILE=/nrims/common/transfer-50L.cfg				# location of default config file
+PATH=/nrims/common/scripts:$PATH								# set PATH
+EXTENSION=.im														# file types to be copies                                                        
+FILTER_STRING=test												# filter string (do not copy)
+SLEEP_TIME=1														# wait time between file size check
+PNG_EXTENSION=".png"
+NRRD_EXTENSION=".nrrd"
+TRACK_DEFAULT=26
+
+###############################################
+## function display_usage
+## 	Displays proper usage.
+###############################################
+function display_usage () {
+   echo "USAGE:"
+   echo ""
+   echo "   ## Use default config file: $CONFIG_FILE"
+   echo "   >> transfer"
+   echo ""
+   echo "   ## Point to a config file."
+   echo "   >> transfer <config_file>"
+   echo ""
+   echo "   ## Use default config file, but override"
+   echo "   ## source_dir and destination_dir."
+   echo "   >> transfer <source_dir> <destination_dir>"
+   echo ""
+   echo "   ## Print help."
+   echo "   >> transfer -h"
+   
+}
+
+###############################################
+## function check_args
+## 	Validates input arguments.
+###############################################
+function check_args () {
+	if [ $# -eq 2 ]; then
+	   eval SOURCE=$(readlink -f $1)
+		eval DESTINATION=$(readlink -f $2)	
+		TRACK_MASS=$TRACK_DEFAULT
+	elif [ $# -eq 1 ]; then
+		if [ -e $1 ]; then
+		   CONFIG_FILE=$(readlink -f $1)
+		   echo "Sourcing $CONFIG_FILE"
+		   source $CONFIG_FILE
+		elif [ "$1" = "-h" ]; then
+			display_usage
+		   exit 0
+		else
+		   echo "$1 is not a valid file."
+		   display_usage
+		   exit 0
+		fi
+	elif [ $# -eq 0 ]; then
+		echo "Using default config file: $CONFIG_FILE"
+		source $CONFIG_FILE
+	else
+  		echo "Improper number of arguments. "
+		display_usage
+   	exit 0
+	fi
+
+	## Set the source and destination directory
+	INPUT_DIR=$SOURCE
+	OUTPUT_DIR=$DESTINATION
+	if [ ! -d $INPUT_DIR ] && [ ! -d $OUTPUT_DIR ]; then
+   	echo "SOURCE or DESTINATION not a valid directory."
+  		echo "   SOURCE = $SOURCE"
+   	echo "   DESTINATION = $DESTINATION"
+   	exit 0
+	fi
+}
+
+###############################################
+## function generate_nrrds
+## 	Generates NRRD files for all IM files
+## 	in OUTPUT_DIR that dont already have one.
+###############################################
+function generate_nrrds () {
+   echo "Generating nrrds..." >> $LOG_FILE
+	for im_file_name in $(ls -r $OUTPUT_DIR/*$EXTENSION); do
+	   file_name_prefix=$(basename $im_file_name $EXTENSION)
+	   nrrd_file_name=${file_name_prefix}.nrrd
+	   if [ ! -e $OUTPUT_DIR/$nrrd_file_name ]; then
+	      cmd_command="open_mims -t $TRACK_MASS $im_file_name"	      
+	      echo "$cmd_command" >> $LOG_FILE
+	      $cmd_command >> $LOG_FILE	      
+	   else
+	      echo "$nrrd_file_name already exists" >> $LOG_FILE
+	   fi
+	done
+}
+
+###############################################
+## function generate_pngs
+## 	Generate PNG images of the nrrd file
+## 	as dictated by the config file.
+###############################################
+function generate_pngs () {
+   echo "Generating pngs..." >> $LOG_FILE
+	for nrrd_file_name in $(ls -r $OUTPUT_DIR/*$NRRD_EXTENSION); do
+	   cmd_command="open_mims -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
+		echo "$cmd_command" >> $LOG_FILE
+		$cmd_command >> $LOG_FILE	      
+	done
+}
+
+###############################################
+## function generate_html
+## 	calls the generate_html_report script 
+###############################################
+function generate_html () {
+   echo "Generating html..." >> $LOG_FILE
+	generate_html_report $(ls -r $OUTPUT_DIR/*.nrrd)
+}
+
+###############################################
+## function copy_file
+## 	Copies files from INPUT_DIR to OUTPUT_DIR
+##    Uses filters and a delay to avoid copying 
+##    files still being written to. 
+###############################################
+function copy_files () {
+   echo "Copying files..." >> $LOG_FILE
+	m=0
+	for abs_file_name in $(find $INPUT_DIR -name "*$EXTENSION"); do
+   	file_name_array[$m]=$abs_file_name
+   	file_size_array[$m]=$(stat -c%s $abs_file_name)      
+   	((m = m + 1 ))
+	done
+
+	## Wait and see if file size grows.
+	sleep $SLEEP_TIME
+
+	## Loop over all files to determine which ones to transfer.
+	for ((i=0; i<${#file_name_array[@]}; i++)); do
+
+   	## Initialize some parameters.
+   	TO_BE_COPIED=false
+   	ABSOLUTE_FILE_NAME=${file_name_array[$i]}
+   	FILE_NAME=$(basename $ABSOLUTE_FILE_NAME)
+   	FILE_NAME_PREFIX=$(basename $FILE_NAME $EXTENSION)  
+   
+   	FILE_SIZE_ORIGINAL=${file_size_array[$i]}
+   	FILE_SIZE_NEW=$(stat -c%s $ABSOLUTE_FILE_NAME)                       
+      
+   	## Do not copy very small files.
+   	if [ $FILE_SIZE_NEW -lt 30000 ]; then
+      	echo "$FILE_NAME  --->  Too small, skipping..." >> $LOG_FILE
+      
+      
+   	## Do not copy files with FILTER_STRING in their name.   
+   	elif [[ "$ABSOLUTE_FILE_NAME" =~ "${FILTER_STRING}" ]]; then
+      	echo "$FILE_NAME  --->  Contains \"test\" in file name, skipping..." >> $LOG_FILE
+      
+      
+   	## Do not copy files that already exist in OUTPUT_DIR.
+   	## However, if the files does already exist but is
+   	## smaller in size then we do want to copy.
+   	elif [ -e $OUTPUT_DIR/$FILE_NAME ]; then
+      	size=$(stat -c%s $OUTPUT_DIR/$FILE_NAME)    
+      	if [ $FILE_SIZE_ORIGINAL -gt $size ]; then 
+      	   echo "$FILE_NAME  --->  (size = $FILE_SIZE_NEW) already exist but is smaller (size = $size), copying..." >> $LOG_FILE
+      	   TO_BE_COPIED=true
+      	else
+      	   echo "$FILE_NAME  --->  Already exist, skipping..." >> $LOG_FILE     
+      	fi         
+   	else
+      	echo "$FILE_NAME  --->  Preparing to copy..." >> $LOG_FILE  
+      	TO_BE_COPIED=true
+   	fi
+   
+      
+   	## Do not copy file if it is still growing in size.
+   	if $TO_BE_COPIED; then   
+      
+      	if [ $FILE_SIZE_NEW -eq $FILE_SIZE_ORIGINAL ]; then      
+      	   echo "cp $ABSOLUTE_FILE_NAME $OUTPUT_DIR" >> $LOG_FILE
+      	   cp $ABSOLUTE_FILE_NAME $OUTPUT_DIR                                  
+      	elif [ $FILE_SIZE_NEW -gt $FILE_SIZE_ORIGINAL ]; then      
+      	   echo "$FILE_NAME  --->  Still acquiring data, skipping..." >> $LOG_FILE         
+      	else                     
+      	   echo "$FILE_NAME  --->  Unable to compare file sizes, skipping..." >> $LOG_FILE         
+      	fi                  
+   	fi      
+	done
+	echo "Transfer Complete." >> $LOG_FILE
+}         
+
+
+## Basic parameters for log file.
+check_args "$@"
+LOG_FILE=$OUTPUT_DIR/log
+echo "log file = $LOG_FILE"
+echo "" >> $LOG_FILE
+date >> $LOG_FILE
+echo "INPUT_DIR = $INPUT_DIR" >> $LOG_FILE
+echo "OUTPUT_DIR = $OUTPUT_DIR" >> $LOG_FILE
+
+copy_files
+generate_nrrds
+generate_pngs
+generate_html
+
+date >> $LOG_FILE
+exit 0

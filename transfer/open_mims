@@ -1,0 +1,61 @@
+#!/bin/bash
+
+##########################################################
+## Converts IM files to NRRD files and performs other
+## actions dependinging upon input arguments.
+##
+## Flags accepted by the Converter library:
+##
+##   Track the image: -t 26 (tracks the image using mass 26)
+##   Use config file: -properties /nrims/common/local/ImageJ/transfer.cfg
+##   Generate PNGs only (do not save any files): -pngs_only, need to be used in conjuction with the -properties flag.
+##
+## Example usages:
+##
+##	  open_mims *.im   
+##   open_mims -t 26 *.im
+##	  open_mims -properties /nrims/common/local/ImageJ/transfer.cfg *.im
+##   open_mims -pngs_only -properties /nrims/common/local/ImageJ/transfer.cfg *.nrrd
+##   open_mims -h
+##
+##########################################################
+
+export IJ_PATH=/nrims/common/local/ImageJ
+
+###############################################
+## function display_usage
+## 	Displays proper usage.
+###############################################
+function display_usage () {
+   echo "FORMAT:"
+   echo ""
+   echo "   ## Converts IM files to NRRd files."
+   echo "   >> open_mims *.im"
+   echo ""
+   echo "   ## Converts IM files to NRRd files and tracks on mass 26."
+   echo "   >> open_mims -t 26 *.im"
+   echo ""
+   echo "   ## Use config file."
+   echo "   >> open_mims -properties /nrims/common/local/ImageJ/transfer.cfg *.im"
+   echo ""
+   echo "   ## Use config file to generate PNGs, but dont save anything"
+   echo "   >> open_mims -pngs_only -properties /nrims/common/local/ImageJ/transfer.cfg *.nrrd"
+   echo ""
+   echo "   ## Print help."
+   echo "   >> open_mims -h"
+}
+
+###############################################
+## function check_args
+## 	Validates input arguments.
+###############################################
+function check_args () {
+	if [ $# -eq 1 ] && [ "$1" = "-h" ]; then
+			display_usage
+		   exit 0
+	fi
+}
+
+check_args "$@"
+
+java -Xmx4072m -cp $IJ_PATH/plugins/Open_MIMS.jar:$IJ_PATH/ij.jar:$IJ_PATH/plugins/nrims_java_common.jar:$IJ_PATH/plugins/Turbo_Reg.jar:$IJ_PATH/plugins/swing-layout-1.0.3.jar:$IJ_PATH/plugins/jfreechart-1.0.13.jar:$IJ_PATH/plugins/jcommon-1.0.16.jar com.nrims.Converter "$@"
