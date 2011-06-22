@@ -1,0 +1,33 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% imgs2pdf_latex script
+% Nikon Image Template
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass{article}
+\usepackage[letterpaper,width=7in,height=9.5in]{geometry}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage[strings]{underscore}
+\pagestyle{fancy}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Headers and footers
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%		
+\chead{\Large{\bf{My title}}}
+\cfoot{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Begin document
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+\includegraphics[height=\textheight]{1_lw.jpg}
+\clearpage\newpage
+\includegraphics[height=\textheight]{2_lw.jpg}
+\clearpage\newpage
+\includegraphics[height=\textheight]{3_lw.jpg}
+\clearpage\newpage
+\includegraphics[height=\textheight]{4_lw.jpg}
+\clearpage\newpage
+
+
+\end{document}
