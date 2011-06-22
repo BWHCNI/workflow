@@ -38,9 +38,46 @@ opts = OptionParser.new do |opts|
 		webcambool = true
 		webcam = "w"
 	end
+	opts.on("-h") do |h|
+		#watch the un-indentation
+		puts <<-TXTBLK
+Usage: nikon_rotate_label.rb -l labelfile.csv [options] img1.jpg img2.jpg ...
+
+Options:
+	-n	rotate for new machine, 50L (default prototype)
+	-c	rotate for Curie Institute machine
+	-t	tile labeled images 2x2
+	-w	use for webcam images (otherwise defaults to scale bars for Nikon ccd)
+	-p	print tiles images (default astaroth)
+	-h	prints this message
+
+Example:
+	nikon_rotate_label.rb -l xy.points.csv -n -t -w -p *.jpg
+	This will label all jpg's with the proper orientation for the 50L,
+	tile, and print.\n
+		TXTBLK
+
+		exit
+	end
 end
 
 opts.parse!(ARGV)
+
+#external commands checks
+#which returns null if can't be found
+#check for convert
+convertPath = %x[which convert]
+if convertPath.length == 0
+	puts "ERROR: this script requires ImageMagik's \"convert\" command to be in your path. Exiting..."
+	exit
+end
+#check for montage
+montagePath = %x[which montage]
+if montagePath.length == 0
+	puts "ERROR: this script requires ImageMagik's \"montage\" command to be in your path. Exiting..."
+	exit
+end
+
 
 csv = Array.new()
 CSV.open(labelfile, 'r') do |row|
@@ -49,6 +86,7 @@ end
 
 csv.each {|r| r.each {|c| print c+" " }; puts ""; }
 
+#gather all file names and file extension
 nameindex = Hash.new(-1)
 csv.each_index {|i| nameindex.store(csv[i][0].to_s, i)}
 
@@ -86,22 +124,23 @@ ARGV.each {|f|
 	name = f.slice(0, f.rindex("."))
 	i=nameindex[name]
 	
+	#find correct scale bar size
 	barcommand = ""
 	if webcambool 
 		barcommand = case csv[i][3].upcase
-			when "5X": "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
-			when "10X": "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "20X": "-draw 'rectangle 75,175,545,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "50X": "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
-			when "100X": "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
+			when "5X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
+			when "10X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "20X"; "-draw 'rectangle 75,175,545,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "50X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
+			when "100X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
 		end
 	else
 		barcommand = case csv[i][3].upcase
-			when "5X": "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
-			when "10X": "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "20X": "-draw 'rectangle 75,175,397,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "50X": "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
-			when "100X": "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
+			when "5X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
+			when "10X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "20X"; "-draw 'rectangle 75,175,397,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "50X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
+			when "100X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
 		end
 	end
 	
