@@ -214,8 +214,8 @@ function copy_files () {
 check_args "$@"
 LOG_FILE=$OUTPUT_DIR/log
 echo "log file = $LOG_FILE"
-echo "" >> $LOG_FILE
-date >> $LOG_FILE
+
+date > $LOG_FILE
 echo "INPUT_DIR = $INPUT_DIR" >> $LOG_FILE
 echo "OUTPUT_DIR = $OUTPUT_DIR" >> $LOG_FILE
 
