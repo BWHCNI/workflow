@@ -73,6 +73,11 @@ if montagePath.length == 0
 	puts "ERROR: this script requires ImageMagik's \"montage\" command to be in your path. Exiting..."
 	exit
 end
+#check for args
+if ARGV.length == 0
+	puts "No files passed. Use \"nikon_rotate_label.rb -h\" for help."
+	exit
+end
 
 #read the label file
 csv = Array.new()
