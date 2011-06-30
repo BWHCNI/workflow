@@ -10,8 +10,6 @@ curie = ""
 newmach = ""
 flip = "-flip "
 webcam = ""
-printer = "astaroth"
-pbool = false
 tbool = false
 webcambool = false
 
@@ -27,9 +25,6 @@ opts = OptionParser.new do |opts|
 	opts.on("-n") do |n|
 		newmach = "n"
 		flip = ""
-	end
-	opts.on("-p") do |p|
-		pbool = true
 	end
 	opts.on("-t") do |p|
 		tbool = true
@@ -48,13 +43,14 @@ Options:
 	-c	rotate for Curie Institute machine
 	-t	tile labeled images 2x2
 	-w	use for webcam images (otherwise defaults to scale bars for Nikon ccd)
-	-p	print tiles images (default astaroth)
 	-h	prints this message
 
 Example:
-	nikon_rotate_label.rb -l xy.points.csv -n -t -w -p *.jpg
-	This will label all jpg's with the proper orientation for the 50L,
-	tile, and print.\n
+	nikon_rotate_label.rb -l xy.points.csv -n -t -w *.jpg
+	This will label all jpg's (from the webcam) with the proper 
+	orientation for the 50L, and tile.
+
+	Note: use imgs2pdf_latex.rb to make pdf.\n
 		TXTBLK
 
 		exit
@@ -78,12 +74,21 @@ if montagePath.length == 0
 	exit
 end
 
-
+#read the label file
 csv = Array.new()
-CSV.open(labelfile, 'r') do |row|
-	csv << row
+#for Ruby 1.8
+if CSV.const_defined? :Reader
+	CSV.open(labelfile, 'r') do |row|
+		csv << row
+	end
+else
+#for Ruby 1.9
+	CSV.foreach(labelfile) do |row|
+		csv << row	
+	end
 end
 
+#print label file just because
 csv.each {|r| r.each {|c| print c+" " }; puts ""; }
 
 #gather all file names and file extension
@@ -179,11 +184,6 @@ if tbool
 		if files!="    "
 			puts "Tiling "+files+" -> #{names}.jpg"
 			system("montage #{files} -mode Concatenate  -tile 2x2  -geometry +5+5 ./labeled/#{names}.jpg")
-		end
-
-		if pbool
-			puts "Printing #{names}.jpg on #{printer}"
-			system("lp -d #{printer} -o scaling=100 ./labeled/#{names}.jpg")
 		end
 
 		puts "-----------------"
