@@ -1,0 +1,53 @@
+Calibration images taken on Nikon scope with both cameras on 2011.6.30.
+Largest lines visible in webcam 5x are 1mm apart, next smaller 0.5mm, next 100um, next 10um.
+IMPORTANT: the script uses scale bars based on an image that is 1600x1200 px (original un-scaled images in ./originals/)
+
+5x pics 500um / 0.5mm is
+webcam: 470 px
+nikon 575 px
+
+10x pics 500um is
+webcam: 930 px
+nikon: 1145 px
+(matches 5x +/- a few px)
+
+20x pics 100um is
+webcam: 376 px
+nikon: 460 px
+
+50x and 100x objectives can't be used with that calibration slide, need to extrapolate.
+Therefore:
+
+50x pics 100um is increased by a factor of 2.5
+webcam: 940 px
+nikon:  1150 px
+
+100x pics 50um is the same
+webcam:  940 px
+nikon:  1150 px
+
+Sizes currently in script new sizes:
+webcam:
+x	um	old px	new px	err
+5	200	260	188	38%
+10	100	260	188	38%
+20	100	470	376	25%
+50	20	260	188	38%
+100	10	260	188	38%
+
+nikon:
+x	um	old px	new px	err
+5	200	160	230	44%
+10	100	160	230	44%
+20	100	322	460	43%
+50	20	160	230	44%
+100	10	160	230	44%
+
+If the error was only from going from 1x to 0.8x adaper on webcam then err is 25%???
+
+Ting-Di's note: "(The reason why I failed to align the analysis frame to the Nikon image is 
+that I choose the starting point on Nikon image while the scale bar on the Nikon image is 
+much larger than the real dimension so the analysed area is a bit shifted to the left side. 
+For your information, based onthe Nikon image of the Si grid, the measured dimension of 
+the 200 um bar is about 275 um and the one of 100 um is around 125 um.)
+

@@ -135,22 +135,24 @@ ARGV.each {|f|
 	i=nameindex[name]
 	
 	#find correct scale bar size
+	#IMPORTANT: the size of the scale bars assumes that the image has been scaled to
+	# 1600x1200px
 	barcommand = ""
 	if webcambool 
 		barcommand = case csv[i][3].upcase
-			when "5X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
-			when "10X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "20X"; "-draw 'rectangle 75,175,545,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "50X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
-			when "100X"; "-draw 'rectangle 75,175,335,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
+			when "5X"; "-draw 'rectangle 75,175,263,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
+			when "10X"; "-draw 'rectangle 75,175,263,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "20X"; "-draw 'rectangle 75,175,451,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "50X"; "-draw 'rectangle 75,175,263,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
+			when "100X"; "-draw 'rectangle 75,175,263,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
 		end
 	else
 		barcommand = case csv[i][3].upcase
-			when "5X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
-			when "10X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "20X"; "-draw 'rectangle 75,175,397,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
-			when "50X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
-			when "100X"; "-draw 'rectangle 75,175,235,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
+			when "5X"; "-draw 'rectangle 75,175,305,185' -gravity none -pointsize 50 -draw \"text 75,165 '200um'\""
+			when "10X"; "-draw 'rectangle 75,175,305,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "20X"; "-draw 'rectangle 75,175,535,185' -gravity none -pointsize 50 -draw \"text 75,165 '100um'\""
+			when "50X"; "-draw 'rectangle 75,175,305,185' -gravity none -pointsize 50 -draw \"text 75,165 '20um'\""
+			when "100X"; "-draw 'rectangle 75,175,305,185' -gravity none -pointsize 50 -draw \"text 75,165 '10um'\""
 		end
 	end
 	
