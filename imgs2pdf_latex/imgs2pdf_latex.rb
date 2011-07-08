@@ -20,7 +20,7 @@ def getTexHeader(title)
 % Nikon Image Template
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \\documentclass{article}
-\\usepackage[letterpaper,width=7in,height=9.5in]{geometry}
+\\usepackage[letterpaper,width=7in,height=9in]{geometry}
 \\usepackage{graphicx}
 \\usepackage{fancyhdr}
 \\usepackage[strings]{underscore}
