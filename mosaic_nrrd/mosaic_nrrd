@@ -361,11 +361,14 @@ def main(args)
     opts.on("-o", "--output file", "Specify output nrrd file.") { |f| options[:file_out] = f }
     opts.on_tail("-h", "--help", "Show this help message.") {STDERR.puts opts; exit}
   end
+
+  parser.parse!(args)
+
   if args.empty?
+    puts "ERROR: No input files given.\n\n"
     STDERR.puts parser
     exit
   end
-  parser.parse!(args)
   options[:files] = args unless args.empty?
   options[:file_out] ||= "mosaic.nrrd"
   
