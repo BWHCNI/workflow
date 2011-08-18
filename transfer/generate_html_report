@@ -1,0 +1,212 @@
+#!/bin/bash
+
+#################
+# FIELDS
+#################
+MIMS_DATE="Mims_date:="
+MIMS_HOUR="Mims_hour:="
+MIMS_SIZE="sizes: "
+MIMS_NOTE="Mims_notes"
+MIMS_RASTER="Mims_raster:="
+MIMS_COUNT_TIME="Mims_count_time:="
+NRRD_EXTENSION=".nrrd"
+PNG_EXTENSION=".png"
+SIZE=""; HOUR=""; DATE=""; RASTER="";
+
+###############################################
+## function usage
+## 	Displays proper usage.
+###############################################
+function usage () {
+cat << EOF
+
+This script generates an html tracking document from PNG images.
+
+Usage: $(basename $0) [OPTIONS] nrrd_files
+
+OPTIONS  | VALUE                                     | DESCRIPTION
+------------------------------------------------------------------------------
+   -l    | link root directory (e.g. images/)        | modify link for web page
+   -f    | output file name (e.g. Lee_Exp21.html)    | name of html file 
+   -h    |                                           | show this message
+
+Examples:
+         generate_html_report ./*.nrrd
+         generate_html_report -f Lee_Exp21.html ./*.nrrd
+         generate_html_report -f Lee_Exp21.html -l images/LEE/EXP14 ./*.nrrd
+
+EOF
+}
+
+###############################################
+## function getMassNumber
+## 	Exctract mass number from file name
+###############################################
+function getMassNumber () {
+   local png_name=$1
+   local file_name_prefix=$2
+   mass=${png_name#${file_name_prefix}_}
+   mass=$(basename $mass $PNG_EXTENSION)
+}
+
+
+###############################################
+## function extractHeader
+## 	Exctract header infor from file
+###############################################
+function extractHeader () {
+for file in $1; do
+	exec<$file
+	SIZE=""; HOUR=""; DATE=""; RASTER="";
+	while read line; 
+	do  
+		if  [[ $line == $MIMS_SIZE* ]]; then		
+			SIZE=${line:${#MIMS_SIZE}}
+			set -- $SIZE
+			PIXELS="$1 x $2"
+		elif [[ $line == $MIMS_HOUR* ]]; then
+			HOUR=${line:${#MIMS_HOUR}}
+	   elif [[ $line == $MIMS_DATE* ]]; then
+	   	DATE=${line:${#MIMS_DATE}}
+	   	DATE=${DATE//./\/}
+	   elif [[ $line == $MIMS_COUNT_TIME* ]]; then
+	      TMP_COUNT_TIME=${line:${#MIMS_COUNT_TIME}}
+	      let COUNT_TIME=`expr "($TMP_COUNT_TIME)/60" | bc`
+	      set -- $SIZE
+			ACQUISITION="$3 x $COUNT_TIME min"
+	   elif [[ $line == $MIMS_RASTER* ]]; then
+	   	TMPRASTER=${line:${#MIMS_RASTER}}	
+	   	let RASTER=`expr "($TMPRASTER+500)/1000" | bc`
+	   elif [[ $line == $MIMS_NOTE* ]]; then
+	   	break	  
+		fi	
+	done	
+done
+}
+	
+###############################################
+## function generate_report
+## 	Builds the report.
+###############################################
+function generate_report () {
+	echo "<html>" > $INDEX_FILE	
+	echo "<head>" >> $INDEX_FILE	
+	echo "<title>$(basename $INDEX_FILE)</title>" >> $INDEX_FILE
+   echo "</head>" >> $INDEX_FILE	
+	echo "<body>" >> $INDEX_FILE
+	for abs_file_name in "$@"; do
+			
+		unset mass_name_array
+		
+		# Make sure the file exists.
+	   if [ ! -e $abs_file_name ]; then
+	      continue
+	   fi
+		echo $abs_file_name
+		abs_file_name=$(readlink -f $abs_file_name)
+		DIR=$(dirname $abs_file_name)
+	   
+   	file_name=$(basename $abs_file_name)
+   	file_name_prefix=$(basename $abs_file_name $NRRD_EXTENSION)  
+   	
+   	# Make sure png images exists.
+		png_file_list=( $(find $DIR -name "${file_name_prefix}_[m,hsi]*$PNG_EXTENSION") )
+	   if [ ${#png_file_list[@]} -eq 0 ]; then
+	      continue
+	   fi	  
+
+		# File name and header info
+		echo "<CENTER>" >> $INDEX_FILE
+		extractHeader $abs_file_name
+		echo "<table border=1>" >> $INDEX_FILE
+		
+		LINK=$abs_file_name
+		if $CHANGE_LINKS; then  
+		   LINK=${abs_file_name/$CPL_ROOT/$LINK_ROOT}
+		fi
+				 
+		echo "<tr><td align=center colspan=3><a href=\"$LINK\">$file_name</a></td></tr>" >> $INDEX_FILE			
+		echo "<tr><td align=center colspan=3>$DIR</td></tr>" >> $INDEX_FILE
+		
+		echo "<tr align=center>" >> $INDEX_FILE
+		echo "<td align=\"left\"><b>Field:</b> $RASTER &mu;m </td> <td align=\"left\"><b>Date:</b> $DATE</td> <td align=\"left\"><b>Acquisition:</b> $ACQUISITION</td>" >> $INDEX_FILE
+		echo "</tr>" >> $INDEX_FILE		
+		echo "<tr align=center>" >> $INDEX_FILE
+		echo "<td align=\"left\"><b>Pixels:</b> $PIXELS</td>  <td align=\"left\"><b>Time:</b> $HOUR</td> <td align=\"left\"><b>Notes:</b>  </td>" >> $INDEX_FILE		
+		echo "</tr>" >> $INDEX_FILE
+		echo "</table>" >> $INDEX_FILE
+		echo "<p></p>" >> $INDEX_FILE
+		echo "</CENTER>" >> $INDEX_FILE
+			
+			
+		# Images		
+   	m=0
+   	echo "<table class=\"image\">" >> $INDEX_FILE	  
+   	echo "<tr>" >> $INDEX_FILE
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*hsi${PNG_EXTENSION}" | sort); do 
+   	   echo "<td valign=\"top\"><img alt=\"$abs_png_name\" src=\"data:image/png;base64," >> $INDEX_FILE
+   	   echo "$(base64 $abs_png_name)\" />" >> $INDEX_FILE
+			echo "</td>" >> $INDEX_FILE
+			png_name=$(basename $abs_png_name)
+			getMassNumber $png_name $file_name_prefix
+			mass_name_array[$m]=$mass
+   	   ((m = m + 1 ))     
+   	done
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*sum${PNG_EXTENSION}" | sort); do
+   	#for abs_png_name in $(find $DIR -name "${file_name_prefix}_m26*sum${PNG_EXTENSION}" | sort); do      
+   	   echo "<td valign=\"top\"><img alt=\"test\" src=\"data:image/png;base64," >> $INDEX_FILE
+   	   echo "$(base64 $abs_png_name)\"/>" >> $INDEX_FILE
+			echo "</td>" >> $INDEX_FILE
+			png_name=$(basename $abs_png_name)
+			getMassNumber $png_name $file_name_prefix
+			mass_name_array[$m]=$mass
+   	   ((m = m + 1 ))     
+   	done
+		echo "</tr>" >> $INDEX_FILE
+		
+		## Caption row
+		echo "<tr>" >> $INDEX_FILE
+		for ((i=0; i<${#mass_name_array[@]}; i++)); do
+		   echo "<td align=\"center\" style=\"font-size: 86%;\">${mass_name_array[$i]}</td>" >> $INDEX_FILE
+		done
+		echo "</tr>" >> $INDEX_FILE
+		echo "</table>" >> $INDEX_FILE
+		echo "<P>" >> $INDEX_FILE
+		echo "<P>" >> $INDEX_FILE
+	done
+
+
+	echo "</body>" >> $INDEX_FILE
+	echo "</html>" >> $INDEX_FILE
+	chmod a+w $INDEX_FILE
+}
+
+DIR=$(pwd)
+DIRNAME=$(basename $DIR)
+INDEX_FILE=$DIR/$DIRNAME.html
+CHANGE_LINKS=false
+LINK_ROOT=""
+CPL_ROOT="/nrims/home3/cpl/JASON/"
+
+while getopts “hf:l:” OPTION
+do
+   case $OPTION in
+      h)
+         usage
+         exit 1
+         ;;
+      f)
+         INDEX_FILE=$OPTARG
+         ;;
+      l)
+         CHANGE_LINKS=true
+         LINK_ROOT=$OPTARG
+         [[ $LINK_ROOT != */ ]] && LINK_ROOT="$LINK_ROOT"/       
+         ;;
+      ?)
+         usage
+         exit             
+         ;;
+   esac
+done
+generate_report "$@"
