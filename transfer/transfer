@@ -17,17 +17,23 @@
 ## 	- FILTER_STRING: Does not copy files containing FILTER_STRING.
 ## 	- SLEEP_TIME: Time to wait between file size checks. Used to see if still acquiring data.
 ##    - TRACK_DEFAULT: The dafault mass to track
-##    - CONFIG_FILE:  The location of the default config file.
 ##########################################################
 
-CONFIG_FILE=/nrims/common/transfer-50L.cfg				# location of default config file
 PATH=/nrims/common/scripts:$PATH								# set PATH
 EXTENSION=.im														# file types to be copies                                                        
-FILTER_STRING=test												# filter string (do not copy)
+FILTER_STRING1=test												# filter string (do not copy)
+FILTER_STRING2=imp												# filter string (do not copy)
 SLEEP_TIME=240														# wait time between file size check
 PNG_EXTENSION=".png"
 NRRD_EXTENSION=".nrrd"
 TRACK_DEFAULT=26
+
+###############################################
+## variables
+###############################################
+new_data=false
+apache_image_dir=images/
+cpl_image_dir=/nrims/home3/cpl/JASON/
 
 ###############################################
 ## function display_usage
@@ -36,15 +42,8 @@ TRACK_DEFAULT=26
 function display_usage () {
    echo "USAGE:"
    echo ""
-   echo "   ## Use default config file: $CONFIG_FILE"
-   echo "   >> transfer"
-   echo ""
    echo "   ## Point to a config file."
    echo "   >> transfer <config_file>"
-   echo ""
-   echo "   ## Use default config file, but override"
-   echo "   ## source_dir and destination_dir."
-   echo "   >> transfer <source_dir> <destination_dir>"
    echo ""
    echo "   ## Print help."
    echo "   >> transfer -h"
@@ -56,11 +55,7 @@ function display_usage () {
 ## 	Validates input arguments.
 ###############################################
 function check_args () {
-	if [ $# -eq 2 ]; then
-	   eval SOURCE=$(readlink -f $1)
-		eval DESTINATION=$(readlink -f $2)	
-		TRACK_MASS=$TRACK_DEFAULT
-	elif [ $# -eq 1 ]; then
+	if [ $# -eq 1 ]; then
 		if [ -e $1 ]; then
 		   CONFIG_FILE=$(readlink -f $1)
 		   echo "Sourcing $CONFIG_FILE"
@@ -73,9 +68,6 @@ function check_args () {
 		   display_usage
 		   exit 0
 		fi
-	elif [ $# -eq 0 ]; then
-		echo "Using default config file: $CONFIG_FILE"
-		source $CONFIG_FILE
 	else
   		echo "Improper number of arguments. "
 		display_usage
@@ -99,16 +91,18 @@ function check_args () {
 ## 	in OUTPUT_DIR that dont already have one.
 ###############################################
 function generate_nrrds () {
-   echo "Generating nrrds..." >> $LOG_FILE
+   echo "Generating nrrds..."
 	for im_file_name in $(ls -r $OUTPUT_DIR/*$EXTENSION); do
 	   file_name_prefix=$(basename $im_file_name $EXTENSION)
 	   nrrd_file_name=${file_name_prefix}.nrrd
 	   if [ ! -e $OUTPUT_DIR/$nrrd_file_name ]; then
 	      cmd_command="open_mims -t $TRACK_MASS $im_file_name"	      
-	      echo "$cmd_command" >> $LOG_FILE
-	      $cmd_command >> $LOG_FILE	      
+	      echo "$cmd_command" 
+	      $cmd_command
+	      chmod a+w $OUTPUT_DIR/$nrrd_file_name
+	      new_data=true    
 	   else
-	      echo "$nrrd_file_name already exists" >> $LOG_FILE
+	      echo "$nrrd_file_name already exists" 
 	   fi
 	done
 }
@@ -119,21 +113,62 @@ function generate_nrrds () {
 ## 	as dictated by the config file.
 ###############################################
 function generate_pngs () {
-   echo "Generating pngs..." >> $LOG_FILE
-	for nrrd_file_name in $(ls -r $OUTPUT_DIR/*$NRRD_EXTENSION); do
-	   cmd_command="open_mims -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
-		echo "$cmd_command" >> $LOG_FILE
-		$cmd_command >> $LOG_FILE	      
+   echo "Generating pngs..." 
+	for nrrd_file_name in $(ls -r $OUTPUT_DIR/*$NRRD_EXTENSION); do	   
+	   nrrd_file_basename=$(basename $nrrd_file_name)
+   	nrrd_file_prefixname=$(basename $nrrd_file_basename $NRRD_EXTENSION)
+	   filelist=( $(find $OUTPUT_DIR -name "${nrrd_file_prefixname}_[m,hsi]*$PNG_EXTENSION") )
+	   if [ ${#filelist[@]} -eq 0 ] || $PNG_OVERWRITE ; then
+	   	echo "filelist1 = $filelist"
+	      cmd_command="open_mims -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
+		   echo "$cmd_command" 
+		   $cmd_command
+		   new_data=true
+		else
+		   echo "pngs for $nrrd_file_basename already exist."
+		fi	
 	done
 }
 
 ###############################################
-## function generate_html
+## function generate_server_html
 ## 	calls the generate_html_report script 
 ###############################################
-function generate_html () {
-   echo "Generating html..." >> $LOG_FILE
-	generate_html_report $(ls -r $OUTPUT_DIR/*.nrrd)
+function generate_server_html () {
+   echo "Generating html..." 
+   html_command="generate_html_report -l $apache_image_dir -f ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} $(ls -r ${OUTPUT_DIR}/*.nrrd)"
+	echo "$html_command"
+	$html_command
+}
+
+###############################################
+## function generate_cplside_html
+## 	calls the generate_html_report script 
+###############################################
+function generate_cplside_html () {
+   echo "Generating html..." 
+   html_command="generate_html_report -f ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} $(ls -r ${OUTPUT_DIR}/*.nrrd)"
+	echo "$html_command"
+	$html_command
+}
+
+###############################################
+## function ftp_report
+## 	scp the report.
+###############################################
+function ftp_report () {
+   echo "ftping report..." 
+   user=zkaufman
+   server=thedi.mgh.harvard.edu
+   root_dir=/var/www/html/tracking
+   scp_command="scp -l 4000 -o \"StrictHostKeyChecking no\" ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} ${user}@${server}:$root_dir"
+   echo "$scp_command"
+   $scp_command
+   
+   server=zoomwhee.mgh.harvard.edu
+   scp_command="scp -l 4000 -o \"StrictHostKeyChecking no\" ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} ${user}@${server}:$root_dir"
+   echo "$scp_command"
+   $scp_command
 }
 
 ###############################################
@@ -143,15 +178,21 @@ function generate_html () {
 ##    files still being written to. 
 ###############################################
 function copy_files () {
-   echo "Copying files..." >> $LOG_FILE
+   echo "Copying files..." 
 	m=0
 	for abs_file_name in $(find $INPUT_DIR -name "*$EXTENSION"); do
    	file_name_array[$m]=$abs_file_name
    	file_size_array[$m]=$(stat -c%s $abs_file_name)      
    	((m = m + 1 ))
 	done
+	
+	if [ $m -eq 0 ]; then
+	   echo "Nothing to transfer..."
+	   exit 0
+	fi	   
 
 	## Wait and see if file size grows.
+	echo "Waiting $SLEEP_TIME seconds..."
 	sleep $SLEEP_TIME
 
 	## Loop over all files to determine which ones to transfer.
@@ -168,12 +209,16 @@ function copy_files () {
       
    	## Do not copy very small files.
    	if [ $FILE_SIZE_NEW -lt 30000 ]; then
-      	echo "$FILE_NAME  --->  Too small, skipping..." >> $LOG_FILE
+      	echo "$FILE_NAME  --->  Too small, skipping..." 
       
       
-   	## Do not copy files with FILTER_STRING in their name.   
-   	elif [[ "$ABSOLUTE_FILE_NAME" =~ "${FILTER_STRING}" ]]; then
-      	echo "$FILE_NAME  --->  Contains \"test\" in file name, skipping..." >> $LOG_FILE
+   	## Do not copy files with FILTER_STRING1 in their name.   
+   	elif [[ "$ABSOLUTE_FILE_NAME" =~ "${FILTER_STRING1}" ]]; then
+      	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING1}\" in file name, skipping..." 
+      	
+      ## Do not copy files with FILTER_STRING2 in their name.   
+   	elif [[ "$ABSOLUTE_FILE_NAME" =~ "${FILTER_STRING2}" ]]; then
+      	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING2}\" in file name, skipping..." 
       
       
    	## Do not copy files that already exist in OUTPUT_DIR.
@@ -182,47 +227,49 @@ function copy_files () {
    	elif [ -e $OUTPUT_DIR/$FILE_NAME ]; then
       	size=$(stat -c%s $OUTPUT_DIR/$FILE_NAME)    
       	if [ $FILE_SIZE_ORIGINAL -gt $size ]; then 
-      	   echo "$FILE_NAME  --->  (size = $FILE_SIZE_NEW) already exist but is smaller (size = $size), copying..." >> $LOG_FILE
+      	   echo "$FILE_NAME  --->  (size = $FILE_SIZE_NEW) already exist but is smaller (size = $size), copying..." 
       	   TO_BE_COPIED=true
       	else
-      	   echo "$FILE_NAME  --->  Already exist, skipping..." >> $LOG_FILE     
+      	   echo "$FILE_NAME  --->  Already exist, skipping..."      
       	fi         
    	else
-      	echo "$FILE_NAME  --->  Preparing to copy..." >> $LOG_FILE  
+      	echo "$FILE_NAME  --->  Preparing to copy..."   
       	TO_BE_COPIED=true
    	fi
    
       
    	## Do not copy file if it is still growing in size.
    	if $TO_BE_COPIED; then   
-      
+  
       	if [ $FILE_SIZE_NEW -eq $FILE_SIZE_ORIGINAL ]; then      
-      	   echo "cp $ABSOLUTE_FILE_NAME $OUTPUT_DIR" >> $LOG_FILE
-      	   cp $ABSOLUTE_FILE_NAME $OUTPUT_DIR                                  
+      	   echo "cp $ABSOLUTE_FILE_NAME $OUTPUT_DIR" 
+      	   cp $ABSOLUTE_FILE_NAME $OUTPUT_DIR
+      	   chmod a+w $OUTPUT_DIR/$FILE_NAME
+      	   new_data=true
       	elif [ $FILE_SIZE_NEW -gt $FILE_SIZE_ORIGINAL ]; then      
-      	   echo "$FILE_NAME  --->  Still acquiring data, skipping..." >> $LOG_FILE         
+      	   echo "$FILE_NAME  --->  Still acquiring data, skipping..."          
       	else                     
-      	   echo "$FILE_NAME  --->  Unable to compare file sizes, skipping..." >> $LOG_FILE         
+      	   echo "$FILE_NAME  --->  Unable to compare file sizes, skipping..."          
       	fi                  
    	fi      
 	done
-	echo "Transfer Complete." >> $LOG_FILE
+	echo "Transfer Complete." 
 }         
 
-
-## Basic parameters for log file.
-check_args "$@"
-LOG_FILE=$OUTPUT_DIR/log
-echo "log file = $LOG_FILE"
-
-date > $LOG_FILE
-echo "INPUT_DIR = $INPUT_DIR" >> $LOG_FILE
-echo "OUTPUT_DIR = $OUTPUT_DIR" >> $LOG_FILE
+check_args "$@" 
+date
+echo "INPUT_DIR = $INPUT_DIR" 
+echo "OUTPUT_DIR = $OUTPUT_DIR" 
 
 copy_files
 generate_nrrds
 generate_pngs
-generate_html
+echo "new_data=$new_data"
+if $new_data; then
+  generate_server_html 
+  ftp_report 
+  generate_cplside_html
+fi
 
-date >> $LOG_FILE
+date 
 exit 0
