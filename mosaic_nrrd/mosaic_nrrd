@@ -1,16 +1,25 @@
 #!/usr/bin/env ruby
-# 2009-11-03
-#
-# Combine a set of neighboring nrrd files into one mosaic nrrd.
-# Differences in Z can be managed by padding with zero up to the max Z,
-# or by compressing into one plane with optional scaling.
-#
-# Two types of mosaics:
-# Grid:: Placement is on a grid specified by a delimited text file.
-# Fluid:: Automatic placement in X and Y.
-#
-# All unu commands used go to stdout, so the effect should be
-# reproducible by re-running the output as a shell script.
+###############################################################
+## 2009-11-03
+##
+## Combine a set of neighboring nrrd files into one mosaic nrrd.
+## Differences in Z can be managed by padding with zero up to the max Z,
+## or by compressing into one plane with optional scaling.
+##
+## Two types of mosaics:
+## Grid:: Placement is on a grid specified by a delimited text file.
+## Fluid:: Automatic placement in X and Y.
+##
+## All unu commands used go to stdout, so the effect should be
+## reproducible by re-running the output as a shell script.
+##
+## TODO:
+## 1) The line containing *.nrrd.normalized prevents the scripts
+##    from running in 2 different terminals simulatenously, because
+##    when one is complete, it deletes ALL the .nrrd.normalized
+##    files.
+## 2) Make it so the header of the mosaic file has relevant Mims_* data.
+###############################################################
 
 require 'optparse'
 require 'pathname'
@@ -30,7 +39,9 @@ module Nrrd
     end.join(' ')
   end
 
-  # make a system call to unu with the given action and arguments
+  ###############################################################
+  ## make a system call to unu with the given action and arguments
+  ###############################################################
   def self.unu_call(action, opts={})
     if action.is_a? Array #  pipe one to the next
       cmd = action.map { |a, o| "#{Unu} #{a} #{opt_str(o)}"}.join(' | ')
@@ -42,7 +53,9 @@ module Nrrd
     puts ""
   end
 
-  # return hashes of header values for nrrd file
+  ###############################################################
+  ## return hashes of header values for nrrd file
+  ###############################################################
   def self.head(filename)
     delim_nrrd = ': '
     delim_meta = ':='
@@ -60,13 +73,17 @@ module Nrrd
     return header
   end
 
-  # return an array of the number of planes in each of the given files
+  ###############################################################
+  ## return an array of the number of planes in each of the given files
+  ###############################################################
   def self.get_planes(files)  
     files.delete_if {|file| file.eql?("-")}
     files.map { |file| head(file)[:nrrd]["sizes"].split(' ')[Axes[:z]].to_i }
   end
 
-  # Pad a nrrd file with zero up to the given max size
+  ###############################################################
+  ## Pad a nrrd file with zero up to the given max size
+  ###############################################################
   def self.pad(file_in, file_out, max, min=nil)
     min ||= [0]*max.length # default to all 0's
     pad_opts = {}
@@ -78,28 +95,33 @@ module Nrrd
     unu_call("pad", pad_opts)
   end
 
-  # Compress input file by summing along Z (and then reinserting the Z axis).
+  ###############################################################
+  ## Compress input file by summing along Z (and then reinserting the Z axis).
+  ###############################################################
   def self.compress(file_in, file_out=nil, axis=Axes[:z])
     file_out ||= file_in
-    #unu_call("project -a #{axis} -m sum -t uint16 -i \"#{file_in}\" | unu axinsert -a #{axis} -o \"#{file_out}\"")
     unu_call("project -a #{axis} -m sum -i \"#{file_in}\" | unu axinsert -a #{axis} -o \"#{file_out}\"")
   end
 
-  # Divide input file by a given value (or another file).
+  ###############################################################
+  ## Divide input file by a given value (or another file).
+  ###############################################################
   def self.divide(file_in, value, file_out=nil)
     file_out ||= file_in
-    #unu_call("2op / \"#{file_in}\" #{value} -t uint16 -o \"#{file_out}\"")
     unu_call("2op / \"#{file_in}\" #{value} -o \"#{file_out}\"")
   end
   
-  # Multiply input file by a given value (or another file).
+  ###############################################################
+  ## Multiply input file by a given value (or another file).
+  ###############################################################
   def self.multiply(file_in, value, file_out=nil)
     file_out ||= file_in
-    #unu_call("2op x \"#{file_in}\" #{value} -t uint16 -o \"#{file_out}\"")
     unu_call("2op x \"#{file_in}\" #{value} -o \"#{file_out}\"")
   end
-
-  # Join a set of nrrd files along a given axis.
+  
+  ###############################################################
+  ## Join a set of nrrd files along a given axis.
+  ###############################################################  
   def self.join(files_in, file_out, axis, sizes, meta={})
     join_opts = {}
     data_opts = {}
@@ -107,7 +129,6 @@ module Nrrd
     join_opts["input"] = files_in.join(' ')
     join_opts["axis"]  = axis
     data_opts[""] = "-"
-    #make_opts["type"]      = "uint16"
     make_opts["encoding"]  = "raw"
     make_opts["endian"]    = "little"
     make_opts["size"]      = sizes.join(' ')
@@ -119,8 +140,10 @@ module Nrrd
     make_opts["keyvalue"]  = meta.map{|key, val| "\"#{key}:=#{val}\""}.join(' ') unless meta.empty?
     unu_call([["join", join_opts], ["data", data_opts], ["make", make_opts]])
   end
-
-  # Copy a single mass from a nrrd file to a new file.
+  
+  ###############################################################
+  ## Copy a single mass from a nrrd file to a new file.
+  ###############################################################
   def self.write_mass(file_in, file_out, mass_number)
     header = head(file_in)
     masses = header[:meta]["Mims_mass_numbers"].split(' ').map {|x| x.to_f.round}
@@ -138,6 +161,9 @@ module Nrrd
 
 end
 
+###############################################################
+##
+###############################################################
 def group_masses(fileset, masses, suffix_out="tmp")
   return fileset unless masses
   fileset.map do |files|
@@ -161,20 +187,11 @@ def group_masses(fileset, masses, suffix_out="tmp")
   end
 end
 
-# Special case where masses changed part-way through analysis.
-def chip6(opts)
-  masses = []
-  masses << [[16], [16]]
-  masses << [[26], [26]]
-  masses << [[27], [27]]
-  masses << [[32], [31, 32, 33]]
-  masses << [[81], [80, 81]]
-  mosaic(opts.merge({:masses => masses}))
-end
-
-# Compensate for varying numbers of planes between the given files,
-# either by padding or compressing in Z.
-# Returns the resulting filenames.
+###############################################################
+## Compensate for varying numbers of planes between the given files,
+## either by padding or compressing in Z.
+## Returns the resulting filenames.
+###############################################################
 def normalize(fileset, opts={})
   opts[:compress]        ||= false
   opts[:scale_by_planes] ||= false
@@ -201,9 +218,11 @@ def normalize(fileset, opts={})
   end
 end
 
-# Join input files together on a grid in X and Y.
-# (Assumes dimensions already match between files.)
-# Returns the output filename.
+###############################################################
+## Join input files together on a grid in X and Y.
+## (Assumes dimensions already match between files.)
+## Returns the output filename.
+###############################################################
 def tile(fileset, file_out)
   header = []
   ref_file = ""
@@ -253,9 +272,11 @@ def tile(fileset, file_out)
   file_out
 end
 
-# Load a grid of tab-delimited input nrrd filenames from the given text file.
-# Each line specifies one row (rows can vary in length).
-# Returns an array of arrays of filenames.
+###############################################################
+## Load a grid of tab-delimited input nrrd filenames from the given text file.
+## Each line specifies one row (rows can vary in length).
+## Returns an array of arrays of filenames.
+###############################################################
 def load_layout(filename, delim_col = "\t", delim_row = $/)
   dir = File.dirname(Pathname.new(filename).realpath.to_s)
   fileset = File.open(filename,'r') {|f| f.read }.split(delim_row).map{|r| r.split(delim_col)}  
@@ -270,7 +291,10 @@ def load_layout(filename, delim_col = "\t", delim_row = $/)
   end
 end
 
-# Return array of relative (to top left) horizontal and vertical positions, in pixels, for the given nrrd files.
+###############################################################
+## Return array of relative (to top left) horizontal and 
+## vertical positions, in pixels, for the given nrrd files.
+###############################################################
 def get_pixel_positions(files, prototype)
   positions    = []
   um_per_px    = []
@@ -283,20 +307,24 @@ def get_pixel_positions(files, prototype)
   files.each do |file|
     mims = Nrrd.head(file)[:meta]
     positions << mims["Mims_position"].split(',').reverse.map{|c| c.to_i}
+
     positions.last[0] *= horizontal_direction
     um_per_px << mims["Mims_pixel_width"].to_f/1000
   end
 
   min_pos = positions.transpose.map{|c| c.sort.first}
+
   positions.each_with_index.map do |p, i|
     p.zip(min_pos).map{|c,m| ((c-m)/um_per_px[i]).round }
   end
 end
 
-# Return array of min and max strings for padding the given nrrd files.
+###############################################################
+## Return array of min and max strings for padding the given nrrd files.
+###############################################################
 def get_pad_values(files, compress, prototype)
   pos_pixels = get_pixel_positions(files, prototype)
-  max_px     = pos_pixels.transpose.map{|x| x.sort.last}
+  max_px     = pos_pixels.transpose.map{|x| x.sort.last}  
   maxes      = files.map { |f| Nrrd.head(f)[:nrrd]["sizes"].split(' ').map{|s| s.to_i - 1} }
   max_planes = 0
   if !compress
@@ -311,25 +339,103 @@ def get_pad_values(files, compress, prototype)
   end
 end
 
-# Sum input files together with specified positioning.
-# Returns the output filename.
+###############################################################
+## Sum input files together with specified positioning.
+## Returns the output filename.
+###############################################################
 def merge(files, pads, file_out)
-  Nrrd.unu_call("pad -b pad #{pads.shift} -i \"#{files.shift}\" -o \"#{file_out}\"") # create canvas with first file
+  tmp_file = file_out + ".tmp"
+  Nrrd.unu_call("pad -b pad #{pads.shift} -i \"#{files.shift}\" -o \"#{tmp_file}\"") # create canvas with first file
+
   files.zip(pads) do |file, pad| # combine with each subsequent file
-    Nrrd.unu_call("pad -b pad #{pad} -i \"#{file}\" | #{Nrrd::Unu} 2op + \"#{file_out}\" - -o \"#{file_out}\"")
+    Nrrd.unu_call("pad -b pad #{pad} -i \"#{file}\" | #{Nrrd::Unu} 2op + \"#{tmp_file}\" - -o \"#{tmp_file}\"")
   end
-  file_out
+  tmp_file
 end
 
+###############################################################
 # Clean up any temp files.
-def cleanup()
-   Dir.glob("*.nrrd.normalized"){|file| File.delete(file)}
-	Dir.glob("row*.nrrd"){|file| File.delete(file)}
+###############################################################
+def cleanup(files)
+  files.each do |file|
+    File.delete(file)
+  end
 end
 
-# Combine a set of nrrd files into one, in one of two ways:
-# * by joining files specified in layout file opts[:layout] together in X and Y.
-# * by padding opts[:files] with extra space in X and Y and then summing together.
+###############################################################
+# Sets the "Mims_position:=" meta data for the mosaic.
+###############################################################
+def set_positions_strings(files, file_out, tmp_out_file, prototype)
+  positions    = []
+  pos_x        = []
+  pos_y        = []
+  locations    = ""
+      
+  ## Build the list of tile positions.
+  size = files.length
+  i = 0
+  files.each do |file|
+    mims = Nrrd.head(file)[:meta]
+    positions << mims["Mims_position"].split(',').reverse.map{|c| c.to_i}
+    if mims.has_key?("Mims_tile_positions")
+       locations << mims["Mims_tile_positions"]
+    else
+       locations << file << "," << positions.last[1].to_s() << "," << positions.last[0].to_s()
+    end
+    if !(i==size-1)
+       locations << ";"
+    end
+    i+=1
+  end
+
+  ## Calculate the center position of the mosaic
+  min_pos = positions.transpose.map{|c| c.sort.first}
+  max_pos = positions.transpose.map{|c| c.sort.last}
+  pos_x = (min_pos[1] + max_pos[1])/2
+  pos_y = (min_pos[0] + max_pos[0])/2
+  
+  ## Caluculate the raster size.
+  mims = Nrrd.head(tmp_out_file)  
+  um_per_px = mims[:meta]["Mims_pixel_width"].to_f/1000
+  x = mims[:nrrd]["sizes"].split(' ')[Axes[:x]].to_f
+  y = mims[:nrrd]["sizes"].split(' ')[Axes[:y]].to_f
+  raster_x = (um_per_px * x).round
+  raster_y = (um_per_px * y).round
+  
+  ## Create the new header.
+  header = IO.popen("unu head \"#{tmp_out_file}\"") {|f| f.read }
+  data = IO.popen("unu data #{tmp_out_file}") {|f| f.read }
+  header.to_a()
+  File.open(file_out, 'w') {|f|
+  header.each do |line|
+    if line.start_with?("Mims_position:=")
+       f.write("Mims_position:="+pos_x.to_s()+","+pos_y.to_s())
+       f.write("\n")
+    elsif line.start_with?("Mims_tile_positions:=")
+       # do nothing
+    elsif line.start_with?("Mims_raster:=")
+       f.write("Mims_raster:="+raster_x.to_s()+","+raster_y.to_s())
+       f.write("\n")
+    else
+       f.write("#{line}")   
+    end    
+  end
+  if prototype
+    f.write("Mims_prototype:=true")
+    f.write("\n")
+  end
+  f.write("Mims_tile_positions:="+locations)
+  f.write("\n")
+  f.write("\n")
+  f.write(data)
+  }
+end
+
+###############################################################
+## Combine a set of nrrd files into one, in one of two ways:
+## * by joining files specified in layout file opts[:layout] together in X and Y.
+## * by padding opts[:files] with extra space in X and Y and then summing together.
+###############################################################
 def mosaic(opts)
   if opts[:type] == :grid
     files = load_layout(opts[:layout])
@@ -338,16 +444,18 @@ def mosaic(opts)
     tile(files2, opts[:file_out])
   else
     pads = get_pad_values(opts[:files], opts[:compress], opts[:prototype])
-    files = group_masses(opts[:files], opts[:masses])
-    files = normalize([files], opts)[0]
-    merge(files, pads, opts[:file_out])
-  end
-  cleanup()
+    nrrd_files = group_masses(opts[:files], opts[:masses])    
+    normalize_files = normalize([nrrd_files], opts)[0]
+    files_to_delete = normalize_files.dup  
+    tmp_out_file = merge(normalize_files, pads, opts[:file_out])
+    set_positions_strings(opts[:files], opts[:file_out], tmp_out_file, opts[:prototype])
+    cleanup(files_to_delete << tmp_out_file)
+  end 
 end
 
-##############
-
-# Create a mosaic based on the given array of command-line arguments.
+###############################################################
+## Create a mosaic based on the given array of command-line arguments.
+###############################################################
 def main(args)
   options = {}
   parser = OptionParser.new do |opts|
@@ -361,14 +469,11 @@ def main(args)
     opts.on("-o", "--output file", "Specify output nrrd file.") { |f| options[:file_out] = f }
     opts.on_tail("-h", "--help", "Show this help message.") {STDERR.puts opts; exit}
   end
-
-  parser.parse!(args)
-
   if args.empty?
-    puts "ERROR: No input files given.\n\n"
     STDERR.puts parser
     exit
   end
+  parser.parse!(args)
   options[:files] = args unless args.empty?
   options[:file_out] ||= "mosaic.nrrd"
   
@@ -388,7 +493,6 @@ def main(args)
   options[:layout] ||= "grid.txt" if options[:type] == :grid
 
   mosaic(options)
-  #chip6(options)
 end
 
 # Returns number of seconds since epoch
