@@ -24,16 +24,18 @@ This script generates an html tracking document from PNG images.
 
 Usage: $(basename $0) [OPTIONS] nrrd_files
 
-OPTIONS  | VALUE                                     | DESCRIPTION
-------------------------------------------------------------------------------
-   -l    | link root directory (e.g. images/)        | modify link for web page
-   -f    | output file name (e.g. Lee_Exp21.html)    | name of html file 
-   -h    |                                           | show this message
-
+OPTIONS  | VALUE                                          | DESCRIPTION
+------------------------------------------------------------------------------------
+   -l    | link root directory (e.g. images/)             | modify link for web page
+   -f    | output file name (e.g. Lee_Exp21.html)         | name of html file
+   -t    | prepend a title (e.g. "This is a test report") | prepends a title
+   -h    |                                                | show this message
+   
 Examples:
          generate_html_report ./*.nrrd
          generate_html_report -f Lee_Exp21.html ./*.nrrd
          generate_html_report -f Lee_Exp21.html -l images/LEE/EXP14 ./*.nrrd
+         generate_html_report -f Lee_Exp21.html -l images/LEE/EXP14 -t "This is a test report" ./*.nrrd
 
 EOF
 }
@@ -75,8 +77,13 @@ for file in $1; do
 	      set -- $SIZE
 			ACQUISITION="$3 x $COUNT_TIME min"
 	   elif [[ $line == $MIMS_RASTER* ]]; then
-	   	TMPRASTER=${line:${#MIMS_RASTER}}	
-	   	let RASTER=`expr "($TMPRASTER+500)/1000" | bc`
+	   	TMPRASTER=${line:${#MIMS_RASTER}}
+	   	if [[ $TMPRASTER = *,* ]]
+	   	then
+	   	   RASTER=$TMPRASTER
+	   	else
+	   	   let RASTER=`expr "($TMPRASTER+500)/1000" | bc`
+	   	fi	   	
 	   elif [[ $line == $MIMS_NOTE* ]]; then
 	   	break	  
 		fi	
@@ -92,19 +99,20 @@ function generate_report () {
 	echo "<html>" > $INDEX_FILE	
 	echo "<head>" >> $INDEX_FILE	
 	echo "<title>$(basename $INDEX_FILE)</title>" >> $INDEX_FILE
-   echo "</head>" >> $INDEX_FILE	
+  echo "</head>" >> $INDEX_FILE	
 	echo "<body>" >> $INDEX_FILE
-	for abs_file_name in "$@"; do
+	echo "$TITLE" >> $INDEX_FILE
+	for rel_file_name in "$@"; do
 			
 		unset mass_name_array
-		
 		# Make sure the file exists.
-	   if [ ! -e $abs_file_name ]; then
+	   if [ ! -e "$rel_file_name" ]; then
 	      continue
 	   fi
-		echo $abs_file_name
-		abs_file_name=$(readlink -f $abs_file_name)
+		echo $rel_file_name
+		abs_file_name=$(readlink -f $rel_file_name)
 		DIR=$(dirname $abs_file_name)
+		BLACKLISTFILE=$DIR/.blacklist
 	   
    	file_name=$(basename $abs_file_name)
    	file_name_prefix=$(basename $abs_file_name $NRRD_EXTENSION)  
@@ -112,17 +120,26 @@ function generate_report () {
    	# Make sure png images exists.
 		png_file_list=( $(find $DIR -name "${file_name_prefix}_[m,hsi]*$PNG_EXTENSION") )
 	   if [ ${#png_file_list[@]} -eq 0 ]; then
+	   	echo "no png files for $file_name"
 	      continue
-	   fi	  
+	   fi
+	   
+	   # 
+	   if [ -e $BLACKLISTFILE ] && grep -q ${file_name_prefix}. $BLACKLISTFILE; then
+  		   echo "$file_name  --->  Listed in .blacklist file, skipping..."
+  		   continue
+  		fi
 
 		# File name and header info
 		echo "<CENTER>" >> $INDEX_FILE
 		extractHeader $abs_file_name
 		echo "<table border=1>" >> $INDEX_FILE
 		
-		LINK=$abs_file_name
-		if $CHANGE_LINKS; then  
+		
+		if $CHANGE_LINKS; then 
 		   LINK=${abs_file_name/$CPL_ROOT/$LINK_ROOT}
+		else 
+		   LINK=$rel_file_name   
 		fi
 				 
 		echo "<tr><td align=center colspan=3><a href=\"$LINK\">$file_name</a></td></tr>" >> $INDEX_FILE			
@@ -143,24 +160,23 @@ function generate_report () {
    	m=0
    	echo "<table class=\"image\">" >> $INDEX_FILE	  
    	echo "<tr>" >> $INDEX_FILE
-   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*hsi${PNG_EXTENSION}" | sort); do 
-   	   echo "<td valign=\"top\"><img alt=\"$abs_png_name\" src=\"data:image/png;base64," >> $INDEX_FILE
-   	   echo "$(base64 $abs_png_name)\" />" >> $INDEX_FILE
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*hsi${PNG_EXTENSION}"); do 
+   	  echo "<td valign=\"top\"><img alt=\"$abs_png_name\" src=\"data:image/png;base64," >> $INDEX_FILE
+   	  echo "$(base64 $abs_png_name)\" />" >> $INDEX_FILE
 			echo "</td>" >> $INDEX_FILE
 			png_name=$(basename $abs_png_name)
 			getMassNumber $png_name $file_name_prefix
 			mass_name_array[$m]=$mass
-   	   ((m = m + 1 ))     
+   	  ((m = m + 1 ))     
    	done
-   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*sum${PNG_EXTENSION}" | sort); do
-   	#for abs_png_name in $(find $DIR -name "${file_name_prefix}_m26*sum${PNG_EXTENSION}" | sort); do      
-   	   echo "<td valign=\"top\"><img alt=\"test\" src=\"data:image/png;base64," >> $INDEX_FILE
-   	   echo "$(base64 $abs_png_name)\"/>" >> $INDEX_FILE
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*sum${PNG_EXTENSION}"); do
+   	  echo "<td valign=\"top\"><img alt=\"test\" src=\"data:image/png;base64," >> $INDEX_FILE
+   	  echo "$(base64 $abs_png_name)\"/>" >> $INDEX_FILE
 			echo "</td>" >> $INDEX_FILE
 			png_name=$(basename $abs_png_name)
 			getMassNumber $png_name $file_name_prefix
 			mass_name_array[$m]=$mass
-   	   ((m = m + 1 ))     
+   	  ((m = m + 1 ))     
    	done
 		echo "</tr>" >> $INDEX_FILE
 		
@@ -172,6 +188,7 @@ function generate_report () {
 		echo "</tr>" >> $INDEX_FILE
 		echo "</table>" >> $INDEX_FILE
 		echo "<P>" >> $INDEX_FILE
+		echo "<hr>" >> $INDEX_FILE
 		echo "<P>" >> $INDEX_FILE
 	done
 
@@ -187,13 +204,16 @@ INDEX_FILE=$DIR/$DIRNAME.html
 CHANGE_LINKS=false
 LINK_ROOT=""
 CPL_ROOT="/nrims/home3/cpl/JASON/"
-
-while getopts “hf:l:” OPTION
+TITLE=""
+while getopts “hf:l:t:” OPTION
 do
-   case $OPTION in
+   case "$OPTION" in   
       h)
          usage
          exit 1
+         ;;
+      t)         
+         TITLE=$OPTARG
          ;;
       f)
          INDEX_FILE=$OPTARG
