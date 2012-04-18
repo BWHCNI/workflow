@@ -6,9 +6,12 @@
 MIMS_DATE="Mims_date:="
 MIMS_HOUR="Mims_hour:="
 MIMS_SIZE="sizes: "
-MIMS_NOTE="Mims_notes"
+MIMS_NOTE="Mims_notes:="
 MIMS_RASTER="Mims_raster:="
 MIMS_COUNT_TIME="Mims_count_time:="
+MIMS_MAX_DELTA="max_tracking_delta:="
+MAX_DELTA_VALUE="10.0"
+MAX_DELTA_FLAG="<font color=\"red\">Bad tracking flag</font>"
 NRRD_EXTENSION=".nrrd"
 PNG_EXTENSION=".png"
 SIZE=""; HOUR=""; DATE=""; RASTER="";
@@ -28,7 +31,7 @@ OPTIONS  | VALUE                                          | DESCRIPTION
 ------------------------------------------------------------------------------------
    -l    | link root directory (e.g. images/)             | modify link for web page
    -f    | output file name (e.g. Lee_Exp21.html)         | name of html file
-   -t    | prepend a title (e.g. "This is a test report") | prepends a title
+   -t    | prepend a title (e.g. "This is a test report") | prepends a title (allows html)
    -h    |                                                | show this message
    
 Examples:
@@ -59,24 +62,33 @@ function getMassNumber () {
 function extractHeader () {
 for file in $1; do
 	exec<$file
-	SIZE=""; HOUR=""; DATE=""; RASTER="";
-	while read line; 
-	do  
-		if  [[ $line == $MIMS_SIZE* ]]; then		
-			SIZE=${line:${#MIMS_SIZE}}
-			set -- $SIZE
-			PIXELS="$1 x $2"
-		elif [[ $line == $MIMS_HOUR* ]]; then
-			HOUR=${line:${#MIMS_HOUR}}
-	   elif [[ $line == $MIMS_DATE* ]]; then
+	SIZE=""; HOUR=""; DATE=""; RASTER=""; MAX_DELTA="0.0"; NOTES="";
+	while read line; do  
+	
+	  ## Get the image size in pixels
+	  if  [[ $line == $MIMS_SIZE* ]]; then		
+		  SIZE=${line:${#MIMS_SIZE}}
+		  set -- $SIZE
+		  PIXELS="$1 x $2"
+
+		## Get the hour.
+	  elif [[ $line == $MIMS_HOUR* ]]; then
+		  HOUR=${line:${#MIMS_HOUR}}
+		
+	  ## Get the date.
+	  elif [[ $line == $MIMS_DATE* ]]; then
 	   	DATE=${line:${#MIMS_DATE}}
 	   	DATE=${DATE//./\/}
-	   elif [[ $line == $MIMS_COUNT_TIME* ]]; then
-	      TMP_COUNT_TIME=${line:${#MIMS_COUNT_TIME}}
-	      let COUNT_TIME=`expr "($TMP_COUNT_TIME)/60" | bc`
-	      set -- $SIZE
+	  
+	  ## Get the acquisition time. 
+	  elif [[ $line == $MIMS_COUNT_TIME* ]]; then
+	    TMP_COUNT_TIME=${line:${#MIMS_COUNT_TIME}}
+	    let COUNT_TIME=`expr "($TMP_COUNT_TIME)/60" | bc`
+	    set -- $SIZE
 			ACQUISITION="$3 x $COUNT_TIME min"
-	   elif [[ $line == $MIMS_RASTER* ]]; then
+	  
+	  ## Get the raster size. 
+	  elif [[ $line == $MIMS_RASTER* ]]; then
 	   	TMPRASTER=${line:${#MIMS_RASTER}}
 	   	if [[ $TMPRASTER = *,* ]]
 	   	then
@@ -84,10 +96,28 @@ for file in $1; do
 	   	else
 	   	   let RASTER=`expr "($TMPRASTER+500)/1000" | bc`
 	   	fi	   	
-	   elif [[ $line == $MIMS_NOTE* ]]; then
-	   	break	  
-		fi	
+	   	
+	  ## Get the notes.	
+	  elif [[ $line == $MIMS_NOTE* ]]; then
+	   	NOTES=${line:${#MIMS_NOTE}}
+	   	
+	  ## Get the max delta offset.
+	  elif [[ $line == $MIMS_MAX_DELTA* ]]; then
+	   	MAX_DELTA="${line:${#MIMS_MAX_DELTA}}"
+	   	
+	  ## Header ends with blank line.
+	  elif [[ $line == "" ]]; then
+	    break
+	   
+	  fi	
 	done	
+	
+	## Insert the flag if MAX_DELTA was too large.
+	compare_result=`echo "$MAX_DELTA > $MAX_DELTA_VALUE" | bc`
+  if [ "$compare_result"  ==  "1" ]; then                
+    NOTES="$MAX_DELTA_FLAG $NOTES"
+  fi
+
 done
 }
 	
@@ -149,7 +179,7 @@ function generate_report () {
 		echo "<td align=\"left\"><b>Field:</b> $RASTER &mu;m </td> <td align=\"left\"><b>Date:</b> $DATE</td> <td align=\"left\"><b>Acquisition:</b> $ACQUISITION</td>" >> $INDEX_FILE
 		echo "</tr>" >> $INDEX_FILE		
 		echo "<tr align=center>" >> $INDEX_FILE
-		echo "<td align=\"left\"><b>Pixels:</b> $PIXELS</td>  <td align=\"left\"><b>Time:</b> $HOUR</td> <td align=\"left\"><b>Notes:</b>  </td>" >> $INDEX_FILE		
+		echo "<td align=\"left\"><b>Pixels:</b> $PIXELS</td>  <td align=\"left\"><b>Time:</b> $HOUR</td> <td align=\"left\"><b>Notes:</b> $NOTES</td>" >> $INDEX_FILE		
 		echo "</tr>" >> $INDEX_FILE
 		echo "</table>" >> $INDEX_FILE
 		echo "<p></p>" >> $INDEX_FILE
@@ -160,7 +190,7 @@ function generate_report () {
    	m=0
    	echo "<table class=\"image\">" >> $INDEX_FILE	  
    	echo "<tr>" >> $INDEX_FILE
-   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*hsi${PNG_EXTENSION}"); do 
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*hsi${PNG_EXTENSION}" | sort -V); do 
    	  echo "<td valign=\"top\"><img alt=\"$abs_png_name\" src=\"data:image/png;base64," >> $INDEX_FILE
    	  echo "$(base64 $abs_png_name)\" />" >> $INDEX_FILE
 			echo "</td>" >> $INDEX_FILE
@@ -169,7 +199,7 @@ function generate_report () {
 			mass_name_array[$m]=$mass
    	  ((m = m + 1 ))     
    	done
-   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*sum${PNG_EXTENSION}"); do
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*sum${PNG_EXTENSION}" | sort -V); do
    	  echo "<td valign=\"top\"><img alt=\"test\" src=\"data:image/png;base64," >> $INDEX_FILE
    	  echo "$(base64 $abs_png_name)\"/>" >> $INDEX_FILE
 			echo "</td>" >> $INDEX_FILE
