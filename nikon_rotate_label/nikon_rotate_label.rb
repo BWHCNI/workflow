@@ -12,10 +12,11 @@ flip = "-flip "
 webcam = ""
 tbool = false
 webcambool = false
+debugbool = false
 
 opts = OptionParser.new do |opts|
 	opts.on("-l labelfile") do |l|
-		puts "label file:   "+l.to_s()
+		puts "Label file:   "+l.to_s()
 		labelfile = l.to_s()
 	end
 	opts.on("-c") do |c|
@@ -33,6 +34,9 @@ opts = OptionParser.new do |opts|
 		webcambool = true
 		webcam = "w"
 	end
+	opts.on("-d") do |d|
+		debugbool = true
+	end
 	opts.on("-h") do |h|
 		#watch the un-indentation
 		puts <<-TXTBLK
@@ -44,6 +48,7 @@ Options:
 	-t	tile labeled images 2x2
 	-w	use for webcam images (otherwise defaults to scale bars for Nikon ccd)
 	-h	prints this message
+	-d	debug flag, print more information
 
 Example:
 	nikon_rotate_label.rb -l xy.points.csv -n -t -w *.jpg
@@ -58,6 +63,9 @@ Example:
 end
 
 opts.parse!(ARGV)
+
+#Print Ruby version
+puts "Ruby version #{RUBY_VERSION}"
 
 #external commands checks
 #which returns null if can't be found
@@ -79,33 +87,53 @@ if ARGV.length == 0
 	exit
 end
 
+args = ARGV
+
 #read the label file
 csv = Array.new()
+
+#Read first line, splitting on ',' to test
+#then on tabs, exiting if both fail
+row = File.open(labelfile, 'r').gets().split(",")
+colsep = ","
+if(row.length <= 1)
+	puts "ERROR: can't separate on commas, trying tab..."
+	row = File.open(labelfile, 'r').gets().split("\t")
+	if(row.length <= 1)
+		puts "ERROR: can't separate on tabs \nExiting..."
+		exit
+	end
+	colsep = "\t"
+end
+puts "Using column seperator: \'#{colsep}\'"
+puts "\n\n\n"
+
 #for Ruby 1.8
 if CSV.const_defined? :Reader
-	CSV.open(labelfile, 'r') do |row|
+	CSV.open(labelfile, 'r', colsep) do |row|
 		csv << row
 	end
 else
 #for Ruby 1.9
-	CSV.foreach(labelfile) do |row|
-		csv << row	
+	CSV.foreach(labelfile, :col_sep => colsep) do |row|
+		csv << row
 	end
 end
 
 #print label file just because
+puts "CSV file:\n**************************************************************"
 csv.each {|r| r.each {|c| print c+" " }; puts ""; }
 
 #gather all file names and file extension
 nameindex = Hash.new(-1)
 csv.each_index {|i| nameindex.store(csv[i][0].to_s, i)}
 
-extension = ARGV[0].slice(ARGV[0].rindex("."),ARGV[0].length-1)
+extension = args[0].slice(args[0].rindex("."),args[0].length-1)
 nolable = ""
 puts "\n"
 
 puts "\n\n**************************************************************"
-ARGV.each {|f| 
+args.each {|f| 
 	ext = f.slice(f.rindex("."),f.length-1)
 	name = f.slice(0, f.rindex("."))
 	
@@ -114,8 +142,7 @@ ARGV.each {|f|
 		puts "Warning: more than one file type!"
 	end
 	if !nameindex.has_key?(name)
-		puts "Warning: #{f} #{name} has no label information (printing ignored)"
-		pbool = false
+		puts "Warning: #{f} #{name} has no label information"
 	end
 }
 puts "**************************************************************\n\n"
@@ -129,7 +156,7 @@ namelist = Array.new
 passedfiles = Array.new
 ext = ""
 
-ARGV.each {|f|
+args.each {|f|
 	ext = f.slice(f.rindex("."),f.length-1)
 	name = f.slice(0, f.rindex("."))
 	i=nameindex[name]
