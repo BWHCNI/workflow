@@ -288,15 +288,15 @@ function copy_files () {
       	echo "$FILE_NAME  --->  Too small, skipping..."       
       
    	## Do not copy files with FILTER_STRING1 in their name.   
-   	elif [[ "$ABSOLUTE_FILE_NAME" =~ "${FILTER_STRING1}" ]]; then
+   	elif [[ "$FILE_NAME" =~ "${FILTER_STRING1}" ]]; then
       	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING1}\" in file name, skipping..." 
       	
     ## Do not copy files with FILTER_STRING2 in their name.   
-   	elif [[ "$ABSOLUTE_FILE_NAME" =~ "${FILTER_STRING2}" ]]; then
+   	elif [[ "$FILE_NAME" =~ "${FILTER_STRING2}" ]]; then
       	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING2}\" in file name, skipping..."
       	
     ## Do not copy files with FILTER_STRING3 in their name.   
-   	elif [[ "$ABSOLUTE_FILE_NAME" =~ "${FILTER_STRING3}" ]]; then
+   	elif [[ "$FILE_NAME" =~ "${FILTER_STRING3}" ]]; then
       	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING3}\" in file name, skipping..."
       	
     ## Do not copy if filename contained in .blacklist file. 
