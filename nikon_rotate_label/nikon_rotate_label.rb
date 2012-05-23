@@ -72,7 +72,7 @@ puts "Ruby version #{RUBY_VERSION}"
 #check for convert
 convertPath = %x[which convert]
 if convertPath.length == 0
-	puts "ERROR: this script requires ImageMagik's \"convert\" command to be in your path. Exiting..."
+	puts "ERROR: this script requires ImageMagick's \"convert\" command to be in your path. Exiting..."
 	exit
 end
 #check for montage
