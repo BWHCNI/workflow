@@ -291,16 +291,16 @@ function copy_files () {
    	elif [[ "$FILE_NAME" =~ "${FILTER_STRING1}" ]]; then
       	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING1}\" in file name, skipping..." 
       	
-    ## Do not copy files with FILTER_STRING2 in their name.   
+    	## Do not copy files with FILTER_STRING2 in their name.   
    	elif [[ "$FILE_NAME" =~ "${FILTER_STRING2}" ]]; then
       	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING2}\" in file name, skipping..."
       	
-    ## Do not copy files with FILTER_STRING3 in their name.   
+    	## Do not copy files with FILTER_STRING3 in their name.   
    	elif [[ "$FILE_NAME" =~ "${FILTER_STRING3}" ]]; then
       	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING3}\" in file name, skipping..."
       	
-    ## Do not copy if filename contained in .blacklist file. 
-    elif $blacklist_exists && grep -q $FILE_NAME $BLACKLISTFILE; then
+    	## Do not copy if filename contained in .blacklist file. 
+    	elif $blacklist_exists && grep -q $FILE_NAME_PREFIX $BLACKLISTFILE; then
   			echo "$FILE_NAME  --->  Listed in .blacklist file, skipping..."
             
    	## Do not copy files that already exist in OUTPUT_DIR.
