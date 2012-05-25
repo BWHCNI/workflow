@@ -71,7 +71,7 @@ for file in $1; do
 		  set -- $SIZE
 		  PIXELS="$1 x $2"
 
-		## Get the hour.
+	  ## Get the hour.
 	  elif [[ $line == $MIMS_HOUR* ]]; then
 		  HOUR=${line:${#MIMS_HOUR}}
 		
@@ -92,7 +92,7 @@ for file in $1; do
 	   	TMPRASTER=${line:${#MIMS_RASTER}}
 	   	if [[ $TMPRASTER = *,* ]]
 	   	then
-	   	   RASTER=$TMPRASTER
+	   	   RASTER=${TMPRASTER//,/ x }
 	   	else
 	   	   let RASTER=`expr "($TMPRASTER+500)/1000" | bc`
 	   	fi	   	
