@@ -135,6 +135,7 @@ module Nrrd
     make_opts["kind"]      = "space space space list" # X, Y, Z, and mass
     make_opts["spacing"]   = "1 1 1 NaN"
     make_opts["centering"] = "node node node node"
+    make_opts["type"]      = "float" ## Added by ZK
     make_opts["unit"]      = "pixel pixel pixel pixel"
     make_opts["output"]    = "\"#{file_out}\""
     make_opts["keyvalue"]  = meta.map{|key, val| "\"#{key}:=#{val}\""}.join(' ') unless meta.empty?
@@ -461,12 +462,12 @@ def main(args)
   parser = OptionParser.new do |opts|
     opts.banner = "Usage: #{File.basename($0)} [options] file1.nrrd file2.nrrd ..."
     opts.on("-t", "--type mosaic_type", [:grid, :fluid], "Choose type of mosaic to create ('grid' or 'fluid').") {|t| options[:type] = t}
-    opts.on("-p", "Data from prototype, reverse x-axis ('fluid' mode only).") {|p| options[:prototype] = true}
+    opts.on("-p", "--prototype", "Data from prototype, reverse x-axis ('fluid' mode only).") {|p| options[:prototype] = true}
     opts.on("-c", "--[no-]compress", "Compress each input file to a single-plane image.") { |c| options[:compress] = c }
     opts.on("-s", "--[no-]scale", "Scale counts by number of planes in each input file.") { |s| options[:scale_by_planes] = s }
-    opts.on("-l", "--layout file", "Specify grid layout file.",
+    opts.on("-l", "--layout layout_filename", "Specify grid layout file.",
             "  (A text file containg input nrrd filenames; columns tab-separated, rows newline-separated)") { |f| options[:layout] = f }
-    opts.on("-o", "--output file", "Specify output nrrd file.") { |f| options[:file_out] = f }
+    opts.on("-o", "--output output_filename", "Specify output nrrd file.") { |f| options[:file_out] = f }
     opts.on_tail("-h", "--help", "Show this help message.") {STDERR.puts opts; exit}
   end
   if args.empty?
