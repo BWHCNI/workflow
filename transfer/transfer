@@ -15,19 +15,20 @@
 ##
 ## 	- EXTENSION: Only files of type EXTENSION are copied.
 ## 	- FILTER_STRING: Does not copy files containing FILTER_STRING.
-## 	- SLEEP_TIME: Time to wait between file size checks. Used to see if still acquiring data.
-##  - TRACK_DEFAULT: The dafault mass to track
+## 	- WAIT_TIME: Time to wait between file size checks. Used to see if still acquiring data.
+##		- TRACK_DEFAULT: The dafault mass to track
 ##########################################################
 
-PATH=/nrims/common/scripts:$PATH					# set PATH
-EXTENSION=.im														  # file types to be copies
-FILTER_STRING1=test												# filter string (do not copy)
-FILTER_STRING2=imp												# filter string (do not copy)
-FILTER_STRING3=presputter                 # filter string (do not copy)
-SLEEP_TIME=240														# wait time between file size check
+PATH=/nrims/common/scripts:$PATH				# set PATH
+EXTENSION=.im										# file types to be copies
+FILTER_STRING1=test								# filter string (do not copy)
+FILTER_STRING2=imp								# filter string (do not copy)
+FILTER_STRING3=presputter						# filter string (do not copy)
 PNG_EXTENSION=".png"
 NRRD_EXTENSION=".nrrd"
 TRACK_DEFAULT=26
+WAIT_TIME=240
+RUN=true
 
 ###############################################
 ## variables
@@ -83,7 +84,7 @@ function check_args () {
 		   exit 0
 		fi
 		if [ $2="-now" ]; then
-		   SLEEP_TIME=1
+		   WAIT_TIME=1
 		else
 		   echo "$2 can only be the -now flag"
 		   display_usage
@@ -99,9 +100,13 @@ function check_args () {
 	INPUT_DIR=$SOURCE
 	OUTPUT_DIR=$DESTINATION
 	BLACKLISTFILE=$OUTPUT_DIR/.blacklist
-	if [ ! -d $INPUT_DIR ] || [ ! -d $OUTPUT_DIR ]; then
-   	echo "SOURCE or DESTINATION not a valid directory."
-    echo "   SOURCE = $SOURCE"
+	if [ ! -d $INPUT_DIR ] ; then
+   	echo "SOURCE not a valid directory."
+      echo "   SOURCE = $SOURCE"
+   	exit 0
+	fi
+	if [ ! -d $OUTPUT_DIR ]; then
+   	echo "DESTINATION not a valid directory."
    	echo "   DESTINATION = $DESTINATION"
    	exit 0
 	fi
@@ -123,8 +128,8 @@ function generate_nrrds () {
   		file_name_prefix=$(basename $file_basename $EXTENSION)  	
 	   	nrrd_file_name=${file_name_prefix}.nrrd
 	   	cmd_command="open_mims"
-	   	if [ ! -e $OUTPUT_DIR/$nrrd_file_name ]; then	   
-	   	   if $blacklist_exists && grep -q ${file_name_prefix}. $BLACKLISTFILE; then
+	   	if [ ! -e $OUTPUT_DIR/$nrrd_file_name ]; then  
+	   	   if $blacklist_exists && grep -q ${file_name_prefix}"\." $BLACKLISTFILE; then
   				   echo "$nrrd_file_name  --->  Listed in .blacklist file, skipping..."
   			     continue
 		      fi
@@ -268,8 +273,8 @@ function copy_files () {
 	fi	   
 
 	## Wait and see if file size grows.
-	echo "Waiting $SLEEP_TIME seconds..."
-	sleep $SLEEP_TIME
+	echo "Waiting $WAIT_TIME seconds..."
+	sleep $WAIT_TIME
 
 	## Loop over all files to determine which ones to transfer.
 	for ((i=0; i<${#file_name_array[@]}; i++)); do
@@ -353,19 +358,23 @@ echo "INPUT_DIR = $INPUT_DIR"
 echo "OUTPUT_DIR = $OUTPUT_DIR" 
 echo "Using Blacklist = $blacklist_exists"
 
-copy_files
-generate_nrrds
-generate_pngs
-echo "new_data=$new_data, TRACKING_OVERWRITE=$TRACKING_OVERWRITE"
-if $new_data || [ ! -e ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} ] || $TRACKING_OVERWRITE; then
-  if $TRACKING; then
-    if $FTP ; then
-      generate_html true 
-      ftp_report 
-    fi
-    generate_html false
-  fi
-  copy_config_file
+if $RUN; then	   
+	copy_files
+	generate_nrrds
+	generate_pngs
+	echo "new_data=$new_data, TRACKING_OVERWRITE=$TRACKING_OVERWRITE"
+	if $new_data || [ ! -e ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} ] || $TRACKING_OVERWRITE; then
+	  if $TRACKING; then
+		 if $FTP ; then
+		   generate_html true 
+		   ftp_report 
+		 fi
+		 generate_html false
+	  fi
+	  copy_config_file
+	fi
+else
+   echo "RUN = false"
 fi
 
 date 

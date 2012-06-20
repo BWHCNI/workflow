@@ -155,7 +155,7 @@ function generate_report () {
 	   fi
 	   
 	   # 
-	   if [ -e $BLACKLISTFILE ] && grep -q ${file_name_prefix}. $BLACKLISTFILE; then
+	   if [ -e $BLACKLISTFILE ] && grep -q ${file_name_prefix}"\." $BLACKLISTFILE; then
   		   echo "$file_name  --->  Listed in .blacklist file, skipping..."
   		   continue
   		fi
