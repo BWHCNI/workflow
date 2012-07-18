@@ -6,3 +6,5 @@ File info:
 10 plane
 
 should result in a 2x2 mosaic
+
+mosaic.nrrd was made with '-t fluid' only
