@@ -99,11 +99,16 @@ colsep = ","
 if(row.length <= 1)
 	puts "ERROR: can't separate on commas, trying tab..."
 	row = File.open(labelfile, 'r').gets().split("\t")
-	if(row.length <= 1)
-		puts "ERROR: can't separate on tabs \nExiting..."
-		exit
-	end
 	colsep = "\t"
+	if(row.length <= 1)
+		puts "ERROR: can't separate on tabs, trying semicolon..."
+		row = File.open(labelfile, 'r').gets().split("\;")
+		colsep = "\;"
+		if(row.length <= 1) 
+			puts "ERROR: can'ts separate on semicolons, \n Exiting..."
+			exit
+		end
+	end
 end
 puts "Using column seperator: \'#{colsep}\'"
 puts "\n\n\n"
