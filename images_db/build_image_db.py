@@ -20,9 +20,9 @@ import sys
 # has been run against:
 #
 
-start = "/nrims/home3/cpoczatek/"
-extensions = ('.im','.nrrd')
-con = lite.connect('image_data.db')
+start = "/nrims/home3/cpoczatek/Pictures/"
+extensions = ('.png','.jpg')
+con = lite.connect('test.db')
 cur = con.cursor()
 
 for root, dirnames, filenames in os.walk(start):
@@ -30,6 +30,14 @@ for root, dirnames, filenames in os.walk(start):
     if filename.endswith(extensions):
       # get full path
       fullpath = os.path.join(root, filename)
+
+      cur.execute("SELECT fname FROM Images WHERE path=:path", {"path": fullpath})        
+      con.commit()
+      
+      row = cur.fetchone()
+      if row!=None:
+        print ("skipping", fullpath)
+        continue
       
       # computing the hash piece by piece is more memory efficient
       #This is too slow, commenting out
@@ -53,6 +61,7 @@ for root, dirnames, filenames in os.walk(start):
       stats = (filename, fullpath, info.st_size, modtime, owner, perm)
       print stats
       
+      #cur.select(UPDATE Cars SET Price=? WHERE Id=?", (uPrice, uId))
       cur.execute("INSERT INTO Images(fname, path, size, mtime, own, perm) VALUES(?,?,?,?,?,?)", stats )
       con.commit()
 
