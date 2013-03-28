@@ -1,3 +1,8 @@
+python mysql links
+http://zetcode.com/db/sqlitepythontutorial/
+
+
+
 Got this from stackoverflow?
 ------------------------------------------------------------------------------------------
 Break the file into 128-byte chunks and feed them to MD5 consecutively using update().
