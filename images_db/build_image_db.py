@@ -20,50 +20,75 @@ import sys
 # has been run against:
 #
 
-start = "/nrims/home3/cpoczatek/Pictures/"
-extensions = ('.png','.jpg')
-con = lite.connect('test.db')
+#Setup
+start = "/nrims/home3/cpoczatek"
+extensions = ('.im','.nrrd')
+
+con = lite.connect('image_data.db')
 cur = con.cursor()
+commitcount = 0
+stats = None
 
-for root, dirnames, filenames in os.walk(start):
-  for filename in filenames:
-    if filename.endswith(extensions):
-      # get full path
-      fullpath = os.path.join(root, filename)
+try:
+  for root, dirnames, filenames in os.walk(start):
+    for filename in filenames:
+      if filename.endswith(extensions):
+        # get full path
+        fullpath = os.path.join(root, filename)
 
-      cur.execute("SELECT fname FROM Images WHERE path=:path", {"path": fullpath})        
-      con.commit()
+        cur.execute("SELECT fname FROM Images WHERE path=:path", {"path": fullpath})        
+        con.commit()
+        
+        row = cur.fetchone()
+        if row!=None:
+          print "in table, skipping " + fullpath
+          continue
       
-      row = cur.fetchone()
-      if row!=None:
-        print ("skipping", fullpath)
-        continue
+        # computing the hash piece by piece is more memory efficient
+        #This is too slow, commenting out
+#        md5 = hashlib.md5()
+#        f = open(fullpath, 'r')
+#        while True:
+#          data = f.read(2**14)
+#          if not data:
+#              break
+#          md5.update(data)
+#        psum = md5.hexdigest()
+
+        # get file metadata
+        info = os.stat(fullpath)
+        # format modification time
+        modtime = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(info.st_mtime))
+        # get owner/permissions
+        owner = info.st_uid
+        perm = oct(info.st_mode)[-3:]
+
+        stats = (filename, fullpath, info.st_size, modtime, owner, perm)
+        print stats
       
-      # computing the hash piece by piece is more memory efficient
-      #This is too slow, commenting out
-#      md5 = hashlib.md5()
-#      f = open(fullpath, 'r')
-#      while True:
-#        data = f.read(2**14)
-#        if not data:
-#            break
-#        md5.update(data)
-#      psum = md5.hexdigest()
-
-      # get file metadata
-      info = os.stat(fullpath)
-      # format modification time
-      modtime = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(info.st_mtime))
-      # get owner/permissions
-      owner = info.st_uid
-      perm = oct(info.st_mode)[-3:]
-
-      stats = (filename, fullpath, info.st_size, modtime, owner, perm)
-      print stats
+        #cur.select(UPDATE Cars SET Price=? WHERE Id=?", (uPrice, uId))
+        cur.execute("INSERT INTO Images(fname, path, size, mtime, own, perm) VALUES(?,?,?,?,?,?)", stats )
       
-      #cur.select(UPDATE Cars SET Price=? WHERE Id=?", (uPrice, uId))
-      cur.execute("INSERT INTO Images(fname, path, size, mtime, own, perm) VALUES(?,?,?,?,?,?)", stats )
-      con.commit()
+        #don't commit for every file
+        if commitcount >100:
+          con.commit()
+          commitcount = 0
+        commitcount += 1
 
+except lite.Error, e:
+    
+  if con:
+      con.rollback()
+        
+  print "stats: " + stats
+  print "Error %s:" % e.args[0]
+  sys.exit(1)
+
+finally:
+  #Close the connection
+  if con:
+    con.commit()
+    con.close()
+  
 
 
