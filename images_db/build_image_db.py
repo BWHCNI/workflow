@@ -28,17 +28,25 @@ con = lite.connect('image_data.db')
 cur = con.cursor()
 commitcount = 0
 stats = None
+errorfile = open('errors.txt', 'a')
 
 try:
   for root, dirnames, filenames in os.walk(start):
     for filename in filenames:
       if filename.endswith(extensions):
         # get full path
-        fullpath = os.path.join(root, filename)
+        try:
+          fullpath = os.path.join(root, filename)        
+          cur.execute("SELECT fname FROM Images WHERE path=:path", {"path": fullpath})        
+          con.commit()
+        except:
+          print "Error--- %s:" % sys.exc_info()[0]
+          print "root: " + root + " filename: " + filename
+          print "Skipping file."
+          errorfile.write("root: " + root + " filename: " + filename + "\n")
+          errorfile.flush()
+          continue
 
-        cur.execute("SELECT fname FROM Images WHERE path=:path", {"path": fullpath})        
-        con.commit()
-        
         row = cur.fetchone()
         if row!=None:
           print "in table, skipping " + fullpath
@@ -80,7 +88,8 @@ except lite.Error, e:
   if con:
       con.rollback()
         
-  print "stats: " + stats
+  print "stats: "
+  print stats
   print "Error %s:" % e.args[0]
   sys.exit(1)
 

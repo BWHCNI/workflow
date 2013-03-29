@@ -1,6 +1,13 @@
+Useful to print std out and write to file
+echo "foo" | tee foo.txt
+./build_image_db.py | tee output.txt
+
+do_something 2>&1 | tee -a some_file
+This is going to redirect everything to file and print it to stdout.
+
+
 python mysql links
 http://zetcode.com/db/sqlitepythontutorial/
-
 
 
 Got this from stackoverflow?
