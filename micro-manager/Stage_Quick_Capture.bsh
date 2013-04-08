@@ -1,0 +1,222 @@
+import ij.*;
+import ij.io.*;
+import ij.gui.*;
+import ij.process.*;
+import org.micromanager.navigation.PositionList;
+import org.micromanager.navigation.MultiStagePosition;
+import java.lang.String;
+import java.io.*;
+import java.text.DecimalFormat;
+
+
+//print some empty lines...
+print("\n\n-----------------------------\n");
+
+boolean loop = true;
+int i = 1;
+String savepath = "/home/administrator/savestage";
+print("savepath: "+savepath);
+
+xyStage = mmc.getXYStageDevice();
+//this is needed later but means nothing...
+zStage = mmc.getFocusDevice();
+
+print("xyStage: "+xyStage);
+print("currently X: " + mmc.getXPosition(xyStage) + ", Y: " + mmc.getYPosition(xyStage));
+
+PositionList pl = new PositionList();
+int i = 1;
+
+DecimalFormat noDecimal = new DecimalFormat("0");
+DecimalFormat oneDecimal = new DecimalFormat("0.0");
+
+String comment = "";
+double m = 10.0;
+mag = new java.lang.String(noDecimal.format(m));
+
+double c = 1.0;
+chip = new java.lang.String(noDecimal.format(c));
+
+GenericDialog dlg = new GenericDialog("Zero Stage?");
+dlg.showDialog();
+if (dlg.wasOKed()) {
+	print("reset origin...");
+	//resets stage to (0,0) maybe should remove...
+	mmc.setOriginXY(xyStage);
+	print("currently X: " + mmc.getXPosition(xyStage) + ", Y: " + mmc.getYPosition(xyStage));
+}
+
+Opener opener = new Opener();
+ImagePlus tempimg = opener.openURL("http://axis.mgh.harvard.edu/jpg/image.jpg");
+
+while(loop) {
+
+	GenericDialog dlg = new GenericDialog("Capute & Record");
+	dlg.addMessage("Image #: "+i);
+	dlg.addStringField("save path: ", savepath, 50);
+	dlg.addStringField("Magnification: ", mag, 0);
+	dlg.addStringField("Chip: ", chip, 0);
+	dlg.addStringField("Comment: ", comment, 50);
+
+	dlg.addMessage("Click Ok to capture and record");
+	dlg.addMessage("Click Cancel to save and quit");
+	dlg.showDialog();
+
+	if (dlg.wasCanceled()) {
+		loop=false;
+		tempimg.close();
+		break;
+	}
+	savepath = dlg.getNextString();
+	mag = dlg.getNextString();
+	chip = dlg.getNextString();
+	comment = dlg.getNextString();
+	
+	//pad i to 3 digits
+	String form = new String("%03d");
+	String ipadded = String.format(form, new Object[]{new Integer(i)});
+
+	//Hold stage
+	//???????
+
+	//Opens updated version of image from webcam and displays image
+	tempimg.close();
+	tempimg = opener.openURL("http://axis.mgh.harvard.edu/jpg/image.jpg");
+
+//test
+//if(i==5) {
+//	tempimg=null;
+//}
+
+//quick fix for null image
+	if(tempimg==null) {
+n = pl.getNumberOfPositions();
+		//write points to txt file in isee format
+
+File ptsfile = new File(savepath, "failed_xy.points");
+FileOutputStream out = new FileOutputStream(ptsfile);
+BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
+
+bw.write("STAGE_LIST\n");
+bw.write("UNITS_UM\n");
+
+for (int i=0; i<n; i++) {
+	x = pl.getPosition(i).getX();
+	xTrunc = new java.lang.String(oneDecimal.format(x));
+	y = pl.getPosition(i).getY();
+	yTrunc = new java.lang.String(oneDecimal.format(y));
+	bw.write(xTrunc + " " + yTrunc + " " + "0 \n");
+}
+
+bw.flush();
+bw.close();
+
+//write points to csv file for labeling
+File csvfile = new File(savepath, "failed_xy.points.csv");
+FileOutputStream out = new FileOutputStream(csvfile);
+BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
+
+//write column headers
+bw.write("\"ISEE\",\"X-coordinate\",\"Y-coordinate\",\"Mag\",\"chip\",\"notes\"\n");
+
+for (int i=0; i<n; i++) {
+	index = i+1;
+	x = pl.getPosition(i).getX();
+	xTrunc = new java.lang.String(oneDecimal.format(x));
+	y = pl.getPosition(i).getY();
+	yTrunc = new java.lang.String(oneDecimal.format(y));
+	mag = pl.getPosition(i).getProperty("mag");
+	chip = pl.getPosition(i).getProperty("chip");
+	comment = pl.getPosition(i).getProperty("comment");
+	bw.write(index+","+xTrunc+","+yTrunc+",\""+mag+"X\","+chip+",\""+comment+"\"\n");
+}
+
+bw.flush();
+bw.close();
+
+//set position list in MM gui
+//can't figure out how to progamatically save....
+gui.setPositionList(pl);
+
+
+}
+//end quick fix
+
+	tempimg.setTitle("image"+ipadded+".jpg");
+	tempimg.show();
+
+	//Check the new position and add to PositionList
+	xpos = mmc.getXPosition(xyStage);
+	ypos = mmc.getYPosition(xyStage);
+	MultiStagePosition msp = new MultiStagePosition(xyStage, xpos, ypos, zStage, 0.0);
+	msp.setLabel("pt"+ipadded);
+	msp.setProperty ("mag", mag);
+	msp.setProperty ("chip", chip);
+	msp.setProperty("comment", comment);
+
+	pl.addPosition(msp);
+
+	IJ.saveAs(tempimg, "Jpeg", savepath+"/"+"image-"+ipadded+".jpg");
+	i = i+1;
+}
+
+//clean up work
+
+//print points for debugging
+n = pl.getNumberOfPositions();
+print("n positions = " + n);
+for (int i=0; i<n; i++) {
+	x = pl.getPosition(i).getX();
+	y = pl.getPosition(i).getY();
+	print("pt: " + i + " X: " + x + ", Y: " + y);
+}
+
+//write points to txt file in isee format
+
+File ptsfile = new File(savepath, "xy.points");
+FileOutputStream out = new FileOutputStream(ptsfile);
+BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
+
+bw.write("STAGE_LIST\n");
+bw.write("UNITS_UM\n");
+
+for (int i=0; i<n; i++) {
+	x = pl.getPosition(i).getX();
+	xTrunc = new java.lang.String(oneDecimal.format(x));
+	y = pl.getPosition(i).getY();
+	yTrunc = new java.lang.String(oneDecimal.format(y));
+	bw.write(xTrunc + " " + yTrunc + " " + "0 \n");
+}
+
+bw.flush();
+bw.close();
+
+//write points to csv file for labeling
+File csvfile = new File(savepath, "xy.points.csv");
+FileOutputStream out = new FileOutputStream(csvfile);
+BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
+
+//write column headers
+bw.write("\"ISEE\",\"X-coordinate\",\"Y-coordinate\",\"Mag\",\"chip\",\"notes\"\n");
+
+for (int i=0; i<n; i++) {
+	index = i+1;
+	x = pl.getPosition(i).getX();
+	xTrunc = new java.lang.String(oneDecimal.format(x));
+	y = pl.getPosition(i).getY();
+	yTrunc = new java.lang.String(oneDecimal.format(y));
+	mag = pl.getPosition(i).getProperty("mag");
+	chip = pl.getPosition(i).getProperty("chip");
+	comment = pl.getPosition(i).getProperty("comment");
+	bw.write(index+","+xTrunc+","+yTrunc+",\""+mag+"X\","+chip+",\""+comment+"\"\n");
+}
+
+bw.flush();
+bw.close();
+
+//set position list in MM gui
+//can't figure out how to progamatically save....
+gui.setPositionList(pl);
+
+
+print("\nTHE END\n-----------------------------\n");
