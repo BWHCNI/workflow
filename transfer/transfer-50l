@@ -1,0 +1,384 @@
+#!/bin/bash
+
+##########################################################
+## The "transfer" script copies IM files from one
+## location to another. It will also convert the IM file
+## to a NRRD file. Depending on the settings of the config 
+## file, the image will be tracked and PNG images will be
+## generated for use in a tracking document.
+##
+## Print help.
+##
+##		transfer -h
+##
+## The following is an explanation of some member variables.
+##
+## 	- EXTENSION: Only files of type EXTENSION are copied.
+## 	- FILTER_STRING: Does not copy files containing FILTER_STRING.
+## 	- WAIT_TIME: Time to wait between file size checks. Used to see if still acquiring data.
+##		- TRACK_DEFAULT: The dafault mass to track
+##########################################################
+
+PATH=/nrims/common/scripts:$PATH				# set PATH
+EXTENSION=.im										# file types to be copies
+FILTER_STRING3=test								# filter string (do not copy)
+FILTER_STRING1=imp								# filter string (do not copy)
+FILTER_STRING2=presputter						# filter string (do not copy)
+PNG_EXTENSION=".png"
+NRRD_EXTENSION=".nrrd"
+TRACK_DEFAULT=26
+WAIT_TIME=240
+RUN=true
+
+###############################################
+## variables
+###############################################
+new_data=false
+blacklist_exists=false
+apache_image_dir=images/
+copy_config_file=true
+
+###############################################
+## function display_usage
+## 	Displays proper usage.
+###############################################
+function display_usage () {
+   echo "USAGE:"
+   echo ""
+   echo "   ## Point to a config file."
+   echo "   >> transfer <config_file>"
+   echo ""
+   echo "   ## Point to a config file and run now."
+   echo "   >> transfer <config_file> -now"      
+   echo ""
+   echo "   ## Print help."
+   echo "   >> transfer -h"
+}
+
+###############################################
+## function check_args
+## 	Validates input arguments.
+###############################################
+function check_args () {
+	if [ $# -eq 1 ]; then
+		if [ -e $1 ]; then
+		   CONFIG_FILE=$(readlink -f $1)
+		   echo "Sourcing $CONFIG_FILE"
+		   source $CONFIG_FILE
+		elif [ "$1" = "-h" ]; then
+			display_usage
+		   exit 0
+		else
+		   echo "$1 is not a valid file."
+		   display_usage
+		   exit 0
+		fi
+	elif [ $# -eq 2 ]; then
+		if [ -e $1 ]; then
+		   CONFIG_FILE=$(readlink -f $1)
+		   echo "Sourcing $CONFIG_FILE"
+		   source $CONFIG_FILE		   
+		else
+		   echo "$1 is not a valid file."
+		   display_usage
+		   exit 0
+		fi
+		if [ $2="-now" ]; then
+		   WAIT_TIME=1
+		else
+		   echo "$2 can only be the -now flag"
+		   display_usage
+		   exit 0
+		fi		
+	else
+  		echo "Improper number of arguments. "
+		display_usage
+   	exit 0
+	fi
+
+	## Set the source and destination directory
+	INPUT_DIR=$SOURCE
+	OUTPUT_DIR=$DESTINATION
+	BLACKLISTFILE=$OUTPUT_DIR/.blacklist
+	if [ ! -d $INPUT_DIR ] ; then
+   	echo "SOURCE not a valid directory."
+      echo "   SOURCE = $SOURCE"
+   	exit 0
+	fi
+	if [ ! -d $OUTPUT_DIR ]; then
+   	echo "DESTINATION not a valid directory."
+   	echo "   DESTINATION = $DESTINATION"
+	echo "Creating $DESTINATION..."
+	mkdir $DESTINATION
+	echo "Created $DESTINATION"
+	chmod a+w $DESTINATION
+	fi
+	if [ -e $BLACKLISTFILE ]; then
+	   blacklist_exists=true
+	fi
+}
+
+###############################################
+## function generate_nrrds
+## 	Generates NRRD files for all IM files
+## 	in OUTPUT_DIR that dont already have one.
+###############################################
+function generate_nrrds () {
+	if $NRRDS ; then
+   	echo "Generating nrrds..."
+		for image_file_name in $(ls -rt $OUTPUT_DIR/*$EXTENSION); do
+			file_basename=$(basename $image_file_name)
+  		file_name_prefix=$(basename $file_basename $EXTENSION)  	
+	   	nrrd_file_name=${file_name_prefix}.nrrd
+	   	cmd_command="open_mims"
+	   	if [ ! -e $OUTPUT_DIR/$nrrd_file_name ]; then  
+	   	   if $blacklist_exists && grep -q ${file_name_prefix}"\." $BLACKLISTFILE; then
+  				   echo "$nrrd_file_name  --->  Listed in .blacklist file, skipping..."
+  			     continue
+		      fi
+	   	   if $TRACK ; then
+	   	      cmd_command="$cmd_command -t $TRACK_MASS"
+	   	   fi   	   	
+	   	   new_data=true    	   	 	
+	   	else	
+	   	   echo "$nrrd_file_name already exists, skipping..."
+	   	   continue 
+	   	fi
+	   	cmd_command="$cmd_command $image_file_name"
+	   	echo "$cmd_command" 
+	   	$cmd_command
+	   	chmod a+w $OUTPUT_DIR/$nrrd_file_name
+		done
+	else
+	   echo "NRRDS=false"
+	fi
+}
+
+###############################################
+## function generate_pngs
+## 	Generate PNG images of the nrrd file
+## 	as dictated by the config file.
+###############################################
+function generate_pngs () {
+	if $PNGS ; then
+   	echo "Generating pngs..."    
+		for nrrd_file_name in $(ls -r $OUTPUT_DIR/*$NRRD_EXTENSION); do	   
+		   nrrd_file_basename=$(basename $nrrd_file_name)
+  		 nrrd_file_prefixname=$(basename $nrrd_file_basename $NRRD_EXTENSION)
+		   if $blacklist_exists && grep -q ${nrrd_file_prefixname}. $BLACKLISTFILE; then
+  			   echo "$nrrd_file_prefixname  --->  Listed in .blacklist file, skipping..."
+  		     continue
+		   fi
+		   filelist=( $(find $OUTPUT_DIR -name "${nrrd_file_prefixname}_[m,hsi]*$PNG_EXTENSION") )
+		   if [ ${#filelist[@]} -eq 0 ] || $PNG_OVERWRITE ; then
+		     cmd_command="open_mims -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
+			   echo "$cmd_command" 
+			   $cmd_command
+			   new_data=true
+   	   elif [ $nrrd_file_name -nt ${filelist[0]} ]; then
+      	 echo "$nrrd_file_basename is newer then the pngs for that file... deleting png's and regenerating."
+      	 find $OUTPUT_DIR -name "${nrrd_file_prefixname}_[m,hsi]*$PNG_EXTENSION" -print0 | xargs -0 -I{} rm {}
+      	 cmd_command="open_mims -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
+         echo "$cmd_command" 
+			   $cmd_command
+			   new_data=true
+			 else		
+			   echo "pngs for $nrrd_file_basename already exist."
+		   fi
+		done
+	else
+	   echo "PNGS=false"
+	fi
+}
+
+###############################################
+## function generate_html
+## 	Calls the generate_html_report script.
+##  1st argument = true, if putting on server.
+##  WEB_TRACKING_HEADERS set up as an array because 
+##  spaces are a nightmare to deal with.
+###############################################
+function generate_html () {
+	if $TRACKING ; then
+	  header_string=""
+	  link_string=""
+	  if $1 ; then
+	     echo "Generating server html..."
+	     link_string="-l $apache_image_dir"
+	  else
+	     echo "Generating non-server html..."
+	  fi 
+   	echo "generate_html_report -t \"$WEB_TRACKING_HEADER\" $link_string -f ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} $(ls -r ${OUTPUT_DIR}/*.nrrd)"
+		generate_html_report -t "$WEB_TRACKING_HEADER" $link_string -f ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} $(ls -r ${OUTPUT_DIR}/*.nrrd)
+	else
+	   echo "TRACKING=false"
+	fi
+
+}
+
+###############################################
+## function ftp_report
+## 	scp the report.
+###############################################
+function ftp_report () {
+	  echo "ftping report..." 
+   	user=$USER
+	   
+	   # Put onto internal server Thedi.	   
+   	server=thedi.mgh.harvard.edu
+   	root_dir=/var/www/html/tracking
+   	scp_command="scp ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} ${user}@${server}:$root_dir"
+	   echo "$scp_command"
+	   $scp_command		
+
+   	# Put into outfacing server Zoomwhee.
+   	# server=zoomwhee.mgh.harvard.edu
+   	# scp_command="scp ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} ${user}@${server}:$root_dir"
+   	# echo "$scp_command"
+   	# $scp_command
+}
+
+###############################################
+## function copy_config_file
+## 	Copies the config file to the DESTINATION 
+##    for future use and reference.
+###############################################
+function copy_config_file () {
+	if $copy_config_file ; then	   
+   	cp_command="cp $CONFIG_FILE $OUTPUT_DIR"
+   	echo "$cp_command"
+   	$cp_command
+   else
+	   echo "copy_config_file=$copy_config_file"
+	fi	
+}
+
+###############################################
+## function copy_file
+## 	Copies files from INPUT_DIR to OUTPUT_DIR
+##    Uses filters and a delay to avoid copying 
+##    files still being written to. 
+###############################################
+function copy_files () {
+  SAVEIFS=$IFS
+  IFS=$(echo -en "\n\b")
+  echo "Copying files..." 
+	m=0
+	for abs_file_name in $(find $INPUT_DIR -name "*$EXTENSION"); do
+   	file_name_array[$m]=$abs_file_name
+   	file_size_array[$m]=$(stat -c%s "$abs_file_name")      
+   	((m = m + 1 ))
+	done
+	
+	if [ $m -eq 0 ]; then
+	   echo "Nothing to transfer..."
+	   #exit 0
+	fi	   
+
+	## Wait and see if file size grows.
+	echo "Waiting $WAIT_TIME seconds..."
+	sleep $WAIT_TIME
+
+	## Loop over all files to determine which ones to transfer.
+	for ((i=0; i<${#file_name_array[@]}; i++)); do
+
+   	## Initialize some parameters.
+   	TO_BE_COPIED=false
+   	ABSOLUTE_FILE_NAME=${file_name_array[$i]}
+   	FILE_NAME=$(basename $ABSOLUTE_FILE_NAME)
+   	FILE_NAME_PREFIX=$(basename $FILE_NAME $EXTENSION)  
+   
+   	FILE_SIZE_ORIGINAL=${file_size_array[$i]}
+   	FILE_SIZE_NEW=$(stat -c%s $ABSOLUTE_FILE_NAME)                       
+      
+   	## Do not copy very small files.
+   	if [ $FILE_SIZE_NEW -lt 30000 ]; then
+      	echo "$FILE_NAME  --->  Too small, skipping..."       
+      
+   	## Do not copy files with FILTER_STRING1 in their name.   
+   	elif [[ "$FILE_NAME" =~ "${FILTER_STRING1}" ]]; then
+      	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING1}\" in file name, skipping..." 
+      	
+    	## Do not copy files with FILTER_STRING2 in their name.   
+   	elif [[ "$FILE_NAME" =~ "${FILTER_STRING2}" ]]; then
+      	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING2}\" in file name, skipping..."
+      	
+    	## Do not copy files with FILTER_STRING3 in their name.   
+   	#elif [[ "$FILE_NAME" =~ "${FILTER_STRING3}" ]]; then
+      	#echo "$FILE_NAME  --->  Contains \"${FILTER_STRING3}\" in file name, skipping..."
+      	
+    	## Do not copy if filename contained in .blacklist file. 
+    	elif $blacklist_exists && grep -q $FILE_NAME_PREFIX $BLACKLISTFILE; then
+  			echo "$FILE_NAME  --->  Listed in .blacklist file, skipping..."
+            
+   	## Do not copy files that already exist in OUTPUT_DIR.
+   	## However, if the files does already exist but is
+   	## smaller in size then we do want to copy.
+   	elif [ -e $OUTPUT_DIR/$FILE_NAME ]; then
+      	size=$(stat -c%s $OUTPUT_DIR/$FILE_NAME)    
+      	if [ $FILE_SIZE_ORIGINAL -gt $size ]; then 
+      	   echo "$FILE_NAME  --->  (size = $FILE_SIZE_NEW) already exist but is smaller (size = $size), copying..."
+      	   TO_BE_COPIED=true
+      	   ## Delete all stale nrrd or png files before copy.
+      	   echo "Deleting stale nrrd for $FILE_NAME..."
+      	   find $OUTPUT_DIR -name "${FILE_NAME_PREFIX}$NRRD_EXTENSION" -print0 | xargs -0 -I{} rm {}
+      	   echo "Deleting stale png's for $FILE_NAME..."
+      	   find $OUTPUT_DIR -name "${FILE_NAME_PREFIX}_[m,hsi]*$PNG_EXTENSION" -print0 | xargs -0 -I{} rm {}
+      	else
+      	   echo "$FILE_NAME  --->  Already exist, skipping..."      
+      	fi         
+   	else
+      	echo "$FILE_NAME  --->  Preparing to copy..."   
+      	TO_BE_COPIED=true
+   	fi
+   
+      
+   	## Do not copy file if it is still growing in size.
+   	if $TO_BE_COPIED; then   
+  
+      	if [ $FILE_SIZE_NEW -eq $FILE_SIZE_ORIGINAL ]; then      
+      	   echo "cp -p $ABSOLUTE_FILE_NAME $OUTPUT_DIR" 
+      	   cp -p $ABSOLUTE_FILE_NAME $OUTPUT_DIR    	   
+      	   chmod a+w $OUTPUT_DIR/$FILE_NAME
+      	   
+
+      	   
+      	   new_data=true
+      	elif [ $FILE_SIZE_NEW -gt $FILE_SIZE_ORIGINAL ]; then      
+      	   echo "$FILE_NAME  --->  Still acquiring data, skipping..."          
+      	else                     
+      	   echo "$FILE_NAME  --->  Unable to compare file sizes, skipping..."          
+      	fi                  
+   	fi      
+	done
+	IFS=$SAVEIFS
+	echo "Transfer Complete." 
+}         
+
+check_args "$@" 
+date
+echo "INPUT_DIR = $INPUT_DIR" 
+echo "OUTPUT_DIR = $OUTPUT_DIR" 
+echo "Using Blacklist = $blacklist_exists"
+
+if $RUN; then	   
+	copy_files
+	generate_nrrds
+	generate_pngs
+	echo "new_data=$new_data, TRACKING_OVERWRITE=$TRACKING_OVERWRITE"
+	if $new_data || [ ! -e ${OUTPUT_DIR}/${TRACKING_DOCUMENT_NAME} ] || $TRACKING_OVERWRITE; then
+	  if $TRACKING; then
+		 if $FTP ; then
+		   generate_html true 
+		   ftp_report 
+		 fi
+		 generate_html false
+	  fi
+	  copy_config_file
+	fi
+else
+   echo "RUN = false"
+fi
+
+date 
+exit 0

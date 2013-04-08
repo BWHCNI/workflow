@@ -1,0 +1,7 @@
+
+transfer:  core transfer script
+
+transfer-50l:  core transfer script plus a few 50l specific modifications
+
+50l-transfer: wrapper for transfer-50l that specifies locations for core script and log and error files; located in /nrims/common/transfer_cfg
+

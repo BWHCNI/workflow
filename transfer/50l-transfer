@@ -1,0 +1,13 @@
+#!/bin/bash
+
+DATE=$(date +"%F")
+SCRIPT=/nrims/common/scripts/transfer-50l
+CONFIGFILE=/nrims/common/transfer_cfg/transfer-50L.cfg
+LOGFILE="/nrims/common/transfer_cfg/log/50l-$DATE.log"
+ERRFILE="/nrims/common/transfer_cfg/log/50l-$DATE-err.log"
+
+echo "starting $SCRIPT $CONFIGFILE -now" >>$LOGFILE
+date >> $LOGFILE
+$SCRIPT $CONFIGFILE -now >>$LOGFILE 2>>$ERRFILE
+echo "done" >>$LOGFILE
+
