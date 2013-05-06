@@ -102,16 +102,20 @@ function check_args () {
 	BLACKLISTFILE=$OUTPUT_DIR/.blacklist
 	if [ ! -d $INPUT_DIR ] ; then
    	echo "SOURCE not a valid directory."
-      echo "   SOURCE = $SOURCE"
+        echo "   SOURCE = $SOURCE"
    	exit 0
 	fi
 	if [ ! -d $OUTPUT_DIR ]; then
    	echo "DESTINATION not a valid directory."
    	echo "   DESTINATION = $DESTINATION"
-	echo "Creating $DESTINATION..."
-	mkdir $DESTINATION
-	echo "Created $DESTINATION"
-	chmod a+w $DESTINATION
+	echo "Attempting to create $DESTINATION..."
+	mkdir -v -m 755 $DESTINATION
+	if [ $? = 0 ]; then
+		echo "Created $DESTINATION"
+	else 
+		echo "Could not create $DESTINATION"
+		exit 0
+	fi
 	fi
 	if [ -e $BLACKLISTFILE ]; then
 	   blacklist_exists=true
@@ -147,7 +151,7 @@ function generate_nrrds () {
 	   	cmd_command="$cmd_command $image_file_name"
 	   	echo "$cmd_command" 
 	   	$cmd_command
-	   	chmod a+w $OUTPUT_DIR/$nrrd_file_name
+		echo "Result of $cmd_command = $?"
 		done
 	else
 	   echo "NRRDS=false"
@@ -339,7 +343,6 @@ function copy_files () {
       	if [ $FILE_SIZE_NEW -eq $FILE_SIZE_ORIGINAL ]; then      
       	   echo "cp -p $ABSOLUTE_FILE_NAME $OUTPUT_DIR" 
       	   cp -p $ABSOLUTE_FILE_NAME $OUTPUT_DIR    	   
-      	   chmod a+w $OUTPUT_DIR/$FILE_NAME
       	   
 
       	   
@@ -376,6 +379,7 @@ if $RUN; then
 	  fi
 	  copy_config_file
 	fi
+	chmod -R go-w $OUTPUT_DIR
 else
    echo "RUN = false"
 fi

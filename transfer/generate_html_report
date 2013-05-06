@@ -167,7 +167,7 @@ function generate_report () {
 		
 		
 		if $CHANGE_LINKS; then 
-		   LINK=${abs_file_name/$CPL_ROOT/$LINK_ROOT}
+		   LINK=${abs_file_name/$CR_ROOT/$LINK_ROOT}
 		else 
 		   LINK=$rel_file_name   
 		fi
@@ -225,7 +225,6 @@ function generate_report () {
 
 	echo "</body>" >> $INDEX_FILE
 	echo "</html>" >> $INDEX_FILE
-	chmod a+w $INDEX_FILE
 }
 
 DIR=$(pwd)
@@ -233,7 +232,8 @@ DIRNAME=$(basename $DIR)
 INDEX_FILE=$DIR/$DIRNAME.html
 CHANGE_LINKS=false
 LINK_ROOT=""
-CPL_ROOT="/nrims/home3/cpl/JASON/"
+#CPL_ROOT="/nrims/home3/cpl/JASON/"
+CR_ROOT="/nrims/home3/cpl/JASON/"
 TITLE=""
 while getopts “hf:l:t:” OPTION
 do
