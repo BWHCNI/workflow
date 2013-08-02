@@ -7,14 +7,18 @@ import org.micromanager.navigation.MultiStagePosition;
 import java.lang.String;
 import java.io.*;
 import java.text.DecimalFormat;
+import java.util.Properties;
 
 
 //print some empty lines...
 print("\n\n-----------------------------\n");
 
 boolean loop = true;
-int i = 1;
 String savepath = "/home/administrator/savestage";
+String OS = System.getProperty("os.name").toLowerCase();
+if (OS.indexOf("win") >= 0){
+	savepath = "C:/Users/admin/savestage";
+}
 print("savepath: "+savepath);
 
 xyStage = mmc.getXYStageDevice();
@@ -50,173 +54,154 @@ Opener opener = new Opener();
 ImagePlus tempimg = opener.openURL("http://axis.mgh.harvard.edu/jpg/image.jpg");
 
 while(loop) {
+	try{
+		GenericDialog dlg = new GenericDialog("Capture & Record");
+		dlg.addMessage("Image #: "+i);
+		dlg.addStringField("save path: ", savepath, 50);
+		dlg.addStringField("Magnification: ", mag, 0);
+		dlg.addStringField("Chip: ", chip, 0);
+		dlg.addStringField("Comment: ", comment, 50);
 
-	GenericDialog dlg = new GenericDialog("Capute & Record");
-	dlg.addMessage("Image #: "+i);
-	dlg.addStringField("save path: ", savepath, 50);
-	dlg.addStringField("Magnification: ", mag, 0);
-	dlg.addStringField("Chip: ", chip, 0);
-	dlg.addStringField("Comment: ", comment, 50);
+		dlg.addMessage("Click Ok to capture and record");
+		dlg.addMessage("Click Cancel to save and quit");
+		dlg.showDialog();
 
-	dlg.addMessage("Click Ok to capture and record");
-	dlg.addMessage("Click Cancel to save and quit");
-	dlg.showDialog();
-
-	if (dlg.wasCanceled()) {
-		loop=false;
-		tempimg.close();
-		break;
+		if (dlg.wasCanceled()) {
+			loop=false;
+			tempimg.close();
+			break;
+		}
+		savepath = dlg.getNextString();
+		mag = dlg.getNextString();
+		chip = dlg.getNextString();
+		comment = dlg.getNextString();
+	}catch (e){
+		print( "Caught exception, dialog window failed: "+e );
 	}
-	savepath = dlg.getNextString();
-	mag = dlg.getNextString();
-	chip = dlg.getNextString();
-	comment = dlg.getNextString();
+	try{
+		//pad i to 3 digits
+		String form = new String("%03d");
+		String ipadded = String.format(form, new Object[]{new Integer(i)});
+
+		//Hold stage
+		//???????
 	
-	//pad i to 3 digits
-	String form = new String("%03d");
-	String ipadded = String.format(form, new Object[]{new Integer(i)});
+		//Opens updated version of image from webcam and displays image
+		tempimg.close();
+		tempimg = opener.openURL("http://axis.mgh.harvard.edu/jpg/image.jpg");
+		tempimg.setTitle("image"+ipadded+".jpg");
+		tempimg.show();
+	}catch(e){
+		print( "Caught exception, opening updated image failed: "+e );
+	}
+	try{
+		//Check the new position and add to PositionList
+		xpos = mmc.getXPosition(xyStage);
+		ypos = mmc.getYPosition(xyStage);
+	}catch(e){
+		print( "Caught exception, checking new position failed: "+e );
+	}
+	try{
+		MultiStagePosition msp = new MultiStagePosition(xyStage, xpos, ypos, zStage, 0.0);
+		msp.setLabel("pt"+ipadded);
+		msp.setProperty ("mag", mag);
+		msp.setProperty ("chip", chip);
+		msp.setProperty("comment", comment);
 
-	//Hold stage
-	//???????
-
-	//Opens updated version of image from webcam and displays image
-	tempimg.close();
-	tempimg = opener.openURL("http://axis.mgh.harvard.edu/jpg/image.jpg");
-
-//test
-//if(i==5) {
-//	tempimg=null;
-//}
-
-//quick fix for null image
-	if(tempimg==null) {
-n = pl.getNumberOfPositions();
-		//write points to txt file in isee format
-
-File ptsfile = new File(savepath, "failed_xy.points");
-FileOutputStream out = new FileOutputStream(ptsfile);
-BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
-
-bw.write("STAGE_LIST\n");
-bw.write("UNITS_UM\n");
-
-for (int i=0; i<n; i++) {
-	x = pl.getPosition(i).getX();
-	xTrunc = new java.lang.String(oneDecimal.format(x));
-	y = pl.getPosition(i).getY();
-	yTrunc = new java.lang.String(oneDecimal.format(y));
-	bw.write(xTrunc + " " + yTrunc + " " + "0 \n");
-}
-
-bw.flush();
-bw.close();
-
-//write points to csv file for labeling
-File csvfile = new File(savepath, "failed_xy.points.csv");
-FileOutputStream out = new FileOutputStream(csvfile);
-BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
-
-//write column headers
-bw.write("\"ISEE\",\"X-coordinate\",\"Y-coordinate\",\"Mag\",\"chip\",\"notes\"\n");
-
-for (int i=0; i<n; i++) {
-	index = i+1;
-	x = pl.getPosition(i).getX();
-	xTrunc = new java.lang.String(oneDecimal.format(x));
-	y = pl.getPosition(i).getY();
-	yTrunc = new java.lang.String(oneDecimal.format(y));
-	mag = pl.getPosition(i).getProperty("mag");
-	chip = pl.getPosition(i).getProperty("chip");
-	comment = pl.getPosition(i).getProperty("comment");
-	bw.write(index+","+xTrunc+","+yTrunc+",\""+mag+"X\","+chip+",\""+comment+"\"\n");
-}
-
-bw.flush();
-bw.close();
-
-//set position list in MM gui
-//can't figure out how to progamatically save....
-gui.setPositionList(pl);
-
-
-}
-//end quick fix
-
-	tempimg.setTitle("image"+ipadded+".jpg");
-	tempimg.show();
-
-	//Check the new position and add to PositionList
-	xpos = mmc.getXPosition(xyStage);
-	ypos = mmc.getYPosition(xyStage);
-	MultiStagePosition msp = new MultiStagePosition(xyStage, xpos, ypos, zStage, 0.0);
-	msp.setLabel("pt"+ipadded);
-	msp.setProperty ("mag", mag);
-	msp.setProperty ("chip", chip);
-	msp.setProperty("comment", comment);
-
-	pl.addPosition(msp);
-
-	IJ.saveAs(tempimg, "Jpeg", savepath+"/"+"image-"+ipadded+".jpg");
+		pl.addPosition(msp);
+	}catch(e){
+		print( "Caught exception, adding position to list failed: "+e );
+	}
+	try{
+		IJ.saveAs(tempimg, "Jpeg", savepath+"/"+"image-"+ipadded+".jpg");
+	}catch(e){
+		print( "Caught exception, adding position to list failed: "+e );
+	}
 	i = i+1;
+	
+	//clean up work
+	n = pl.getNumberOfPositions();
+
+	try{
+		//write points to txt file in isee format
+		File ptsfile = new File(savepath, "xy.points");
+
+		//save a copy of current xy.points in case of failure
+		if (pstfile.exists()){
+			File tempFile = new File(System.getProperty("java.io.tmpdir")+"/savestage", "xy.points");
+			if (tempFile.exists()){
+				tempFile.delete();
+			}
+			pstfile.renameTo(tempFile);
+			pstfile = new File (savepath, "xy.points");
+		}
+		FileOutputStream out = new FileOutputStream(ptsfile);
+		BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
+
+		bw.write("STAGE_LIST\n");
+		bw.write("UNITS_UM\n");
+		for (int j=0; j<n; j++) {
+			x = pl.getPosition(j).getX();
+			xTrunc = new java.lang.String(oneDecimal.format(x));
+			y = pl.getPosition(j).getY();
+			yTrunc = new java.lang.String(oneDecimal.format(y));
+			bw.write(xTrunc + " " + yTrunc + " " + "0 \n");
+		}
+
+		bw.flush();
+		bw.close();
+	}catch(e){
+		print( "Caught exception, writing points to xy.points failed: "+e );
+	}
+	try{
+		//write points to csv file for labeling
+		File csvfile =  new File(savepath, "xy.points.csv");
+
+		//save a copy of current xy.points.csv in case of failure
+		if (csvfile.exists()){
+			File tempFile = new File(System.getProperty("java.io.tmpdir")+"/savestage", "xy.points.csv");
+			if (tempFile.exists()){
+				tempFile.delete();
+			}
+			csvfile.renameTo(tempFile);
+			csvfile = new File (savepath, "xy.points.csv");
+		}
+		FileOutputStream out = new FileOutputStream(csvfile);
+		BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
+
+		//write column headers
+		bw.write("\"ISEE\",\"X-coordinate\",\"Y-coordinate\",\"Mag\",\"chip\",\"notes\"\n");
+
+		for (int j=0; j<n; j++) {
+			index = j+1;
+			x = pl.getPosition(j).getX();
+			xTrunc = new java.lang.String(oneDecimal.format(x));
+			y = pl.getPosition(j).getY();
+			yTrunc = new java.lang.String(oneDecimal.format(y));
+			mag = pl.getPosition(j).getProperty("mag");
+			chip = pl.getPosition(j).getProperty("chip");
+			comment = pl.getPosition(j).getProperty("comment");
+			bw.write(index+","+xTrunc+","+yTrunc+",\""+mag+"X\","+chip+",\""+comment+"\"\n");
+		}
+
+		bw.flush();
+		bw.close();
+		print("Saved " + n + " positions");
+
+		//set position list in MM gui
+		//can't figure out how to progamatically save....
+		gui.setPositionList(pl);
+	}catch (e){
+		print( "Caught exception, writing to csv : "+e );
+	}
+	
 }
-
-//clean up work
-
-//print points for debugging
 n = pl.getNumberOfPositions();
-print("n positions = " + n);
-for (int i=0; i<n; i++) {
-	x = pl.getPosition(i).getX();
-	y = pl.getPosition(i).getY();
-	print("pt: " + i + " X: " + x + ", Y: " + y);
+//print("n positions = " + n);
+for (int j=0; j<n; j++) {
+	x = pl.getPosition(j).getX();
+	y = pl.getPosition(j).getY();
+	print("pt: " + j + " X: " + x + ", Y: " + y);
 }
-
-//write points to txt file in isee format
-
-File ptsfile = new File(savepath, "xy.points");
-FileOutputStream out = new FileOutputStream(ptsfile);
-BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
-
-bw.write("STAGE_LIST\n");
-bw.write("UNITS_UM\n");
-
-for (int i=0; i<n; i++) {
-	x = pl.getPosition(i).getX();
-	xTrunc = new java.lang.String(oneDecimal.format(x));
-	y = pl.getPosition(i).getY();
-	yTrunc = new java.lang.String(oneDecimal.format(y));
-	bw.write(xTrunc + " " + yTrunc + " " + "0 \n");
-}
-
-bw.flush();
-bw.close();
-
-//write points to csv file for labeling
-File csvfile = new File(savepath, "xy.points.csv");
-FileOutputStream out = new FileOutputStream(csvfile);
-BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(out));
-
-//write column headers
-bw.write("\"ISEE\",\"X-coordinate\",\"Y-coordinate\",\"Mag\",\"chip\",\"notes\"\n");
-
-for (int i=0; i<n; i++) {
-	index = i+1;
-	x = pl.getPosition(i).getX();
-	xTrunc = new java.lang.String(oneDecimal.format(x));
-	y = pl.getPosition(i).getY();
-	yTrunc = new java.lang.String(oneDecimal.format(y));
-	mag = pl.getPosition(i).getProperty("mag");
-	chip = pl.getPosition(i).getProperty("chip");
-	comment = pl.getPosition(i).getProperty("comment");
-	bw.write(index+","+xTrunc+","+yTrunc+",\""+mag+"X\","+chip+",\""+comment+"\"\n");
-}
-
-bw.flush();
-bw.close();
-
-//set position list in MM gui
-//can't figure out how to progamatically save....
-gui.setPositionList(pl);
-
 
 print("\nTHE END\n-----------------------------\n");
