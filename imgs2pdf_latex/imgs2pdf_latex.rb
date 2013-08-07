@@ -106,6 +106,9 @@ if sortbool
 		reg = /\d+/
 		mx = reg.match(x)
 		my = reg.match(y)
+		if debug
+			puts "compare #{mx} to #{my}"
+		end
 		ix = mx[0].to_i
 		iy = my[0].to_i
 		ix <=> iy
