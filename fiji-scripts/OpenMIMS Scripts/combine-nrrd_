@@ -1,0 +1,16 @@
+import com.nrims as nrims
+
+import java.io.File as File
+import java.util.ArrayList as ArrayList
+import java.lang.Integer as Integer
+
+import sys
+from java.lang.System import getProperty
+sys.path.append(getProperty("fiji.dir") + "/plugins/Scripts/Plugins/OpenMIMS Scripts/")
+from OMUtilities import MultiFileDialog
+from OMUtilities import CheckFileLists
+
+import os
+import jarray
+
+imFileNames = MultiFileDialog("Open Image Files")
