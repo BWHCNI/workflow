@@ -69,14 +69,17 @@ def CheckFileType(files, extension):
 #
 def CheckFileLists(lista, listb):
   return
-
+originalParent = ""
 imFileNames = MultiFileDialog("Open Image Files")
 tempFiles = ArrayList()
 ui = nrims.UI()
 ui.show()
 verbose = 1;
+IJ.log("Starting combine nrrds.")
 for i in range(len(imFileNames)):
-	IJ.log("\nFilename:" + imFileNames[i])
+	if i = 0:
+		originalParent = imFile.getParent()
+	IJ.log("Summing file:" + imFileNames[i])
 	imFile = File(imFileNames[i])
 	directory = imFile.getParent()
 	name = imFile.getName()
@@ -101,7 +104,7 @@ tempFileArray = tempFiles.toArray()
 ui.openFile(tempFileArray[0])
 for i in range(len(tempFileArray)):
 	if i != 0:
-		IJ.log("Opening " + str(i));
+		IJ.log("Concating file " + str(i));
 		directory = tempFileArray[i].getParent()
 		name = tempFileArray[i].getName()
 		tempUi = nrims.UI()
@@ -131,4 +134,9 @@ for i in range(len(tempFileArray)):
              	ui.getMimsData().setHasStack(True)
 		tempUi = None;
 		tempFileArray[i].delete()
+nw = nrimsData.Nrrd_Writer(ui)
+images = ui.getOpenMassImages()
+dataFile = nw.save(images, originalParent, "stack_" + name)
+tempFileArray[0].delete()
+IJ.log("Finished stacking nrrds.");
 
