@@ -1,4 +1,7 @@
-import com.nrims as nrims
+import com.nrims.UI as UI
+import com.nrims.RatioProps as RatioProps
+import com.nrims.MimsPlus as MimsPlus
+import com.nrims.MimsJTable as MimsJTable
 
 import java.io.File as File
 import java.util.ArrayList as ArrayList
@@ -55,7 +58,7 @@ stats = ["group", "area", "mean", "stddev", "N/D"]
 #////////////////////////////
 # Initialize stuff.
 #////////////////////////////
-ui = nrims.UI()
+ui = UI()
 ui.show()
 
 #////////////////////////////
@@ -93,26 +96,26 @@ for i in range(len(imFileNames)):
   # Ratio images
   # 0 corresponds to the first mass image (e.g. mass 12.0)
   # 1 corresponds to the second mass image (e.g. mass 13.0)
-  ratioProps1 = nrims.RatioProps(1, 0)
-  mp1 = nrims.MimsPlus(ui, ratioProps1)
+  ratioProps1 = RatioProps(1, 0)
+  mp1 = MimsPlus(ui, ratioProps1)
   imageArray.add(mp1)
   IJ.log("Opening ratio: "+mp1.getTitle())
 
   # Ratio images
   # 2 corresponds to the first mass image (e.g. mass 26.0)
   # 3 corresponds to the second mass image (e.g. mass 27.0)
-  ratioProps2 = nrims.RatioProps(3, 2)
-  mp2 = nrims.MimsPlus(ui, ratioProps2)
+  ratioProps2 = RatioProps(3, 2)
+  mp2 = MimsPlus(ui, ratioProps2)
   imageArray.add(mp2)
   IJ.log("Opening ratio: "+mp2.getTitle())
 
-  images = jarray.zeros(imageArray.size(), nrims.MimsPlus)
+  images = jarray.zeros(imageArray.size(), MimsPlus)
   images = imageArray.toArray(images)
   
   #////////////////////////////
   # Create and display table.
   #////////////////////////////
-  table = nrims.MimsJTable(ui)
+  table = MimsJTable(ui)
   table.setStats(stats)
   table.setRois(rois)
   table.setImages(images)
