@@ -8,6 +8,20 @@ Do something analogous to:
 cd ~/Fiji.app/plugins/Scripts/Plugins/
 ln -s ~/workflow_scripts/fiji-scripts/OpenMIMS\ Scripts/ OpenMIMS\ Scripts
 
+Development should occur in 'OpenMIMS_Scripts_devel'.
+
+"Proper" development:
+1) check out workflow_scripts/fiji-scripts/ (this is obviously already done).
+2) create symlink as above.
+3) Start your IDE (Fiji!), open 'Script Editor', create myScript_.py in 'OpenMIMS_Scripts_devel' and hack away.
+4) Don't forget 'svn add'.
+5) Commit as needed.
+6) When ready for enduser consumption 'svn move myScript_.py ../OpenMIMS\ Scripts/' .
+7) Push to update site, update enduser installs (e.g. common) as needed.
+8) When fixing bugs, edit files -in place- in 'OpenMIMS Scripts', committing as needed.  Repeat 7.
+
+
+#############################################
 Random notes:
 
 This -package- import: import com.nrims as nrims 
