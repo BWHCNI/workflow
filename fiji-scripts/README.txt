@@ -30,3 +30,10 @@ Will only work if fiji is started with this flag
 
 Run script from command line:
 ./ImageJ-linux64 -Dpython.cachedir.skip=false --allow-multiple /nrims/home3/cpoczatek/Fiji_test/Tables_test_.py
+
+
+If you want to clear the "Open Recent" menu in the script editor
+open ~/.imagej/IJ_Prefs.txt and cut the lines begining with:
+".script.editor.recent"
+
+
