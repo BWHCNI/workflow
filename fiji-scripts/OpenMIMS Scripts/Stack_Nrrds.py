@@ -77,9 +77,9 @@ for i in range(len(imFileNames)):
 	directory = imFile.getParent()
 	if i == 0:
 		originalParent = imFile.getParent()
-		originalName = imFile.getName()
+		originalName = os.path.splitext(imFile.getName())[0]
 	IJ.log("Summing file:" + imFileNames[i])
-	name = imFile.getName()
+	name = os.path.splitext(imFile.getName())[0]
 	ui.openFile(imFile)
 	mimStack = ui.getmimsStackEditing()
 	imp = ArrayList()
@@ -93,7 +93,7 @@ for i in range(len(imFileNames)):
        	
 	if done:
 		nw = nrimsData.Nrrd_Writer(ui)
-		dataFile = nw.save(images, System.getProperty("java.io.tmpdir"), "comp_" + name)
+		dataFile = nw.save(images, System.getProperty("java.io.tmpdir"), "comp_" + name + ".nrrd")
 		tempFiles.add(dataFile)
 tempFileArray = tempFiles.toArray()
 #all work is done in first file
@@ -132,10 +132,10 @@ for i in range(len(tempFileArray)):
 		tempFileArray[i].delete()
 nw = nrimsData.Nrrd_Writer(ui)
 images = ui.getOpenMassImages()
-dataFile = nw.save(images, originalParent, "stack_" + originalName)
+dataFile = nw.save(images, originalParent, "stack_" + originalName + ".nrrd")
 ui.setLastFolder(originalParent)
 ui.closeCurrentImage()
 ui.close()
 tempFileArray[0].delete()
-IJ.log("Finished 'Stack Nrrds'.\n");
+IJ.log("Finished 'Stack Nrrds'.\n")
 
