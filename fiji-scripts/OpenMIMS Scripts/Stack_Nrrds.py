@@ -14,6 +14,7 @@ import javax.swing.JFileChooser as JFileChooser
 import java.io.File as File
 from ij import IJ
 import ij.io.OpenDialog as OpenDialog
+import ij.gui.YesNoCancelDialog as YesNoCancelDialog
 
 
 import os
@@ -62,6 +63,24 @@ def MultiFileDialog(title):
 
 # 
 # 
+def FolderDialog():
+  fc = JFileChooser()
+  fc.setMultiSelectionEnabled(False)
+  fc.setDialogTitle("Choose a folder")
+  fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+  fc.setAcceptAllFileFilterUsed(false);
+  sdir = OpenDialog.getDefaultDirectory()
+  if sdir!=None:
+    fdir = File(sdir)
+  if fdir!=None:
+    fc.setCurrentDirectory(fdir)
+  returnVal = fc.showOpenDialog(IJ.getInstance())
+  if returnVal!=JFileChooser.APPROVE_OPTION:
+    return
+  folder = chooser.getSelectedFile();
+  path = os.path.join(folder.getParent(), folder.getName())
+  return path
+  
 def CheckFileType(files, extension):
   return
 
@@ -132,10 +151,20 @@ for i in range(len(tempFileArray)):
 		tempFileArray[i].delete()
 nw = nrimsData.Nrrd_Writer(ui)
 images = ui.getOpenMassImages()
-dataFile = nw.save(images, originalParent, "stack_" + originalName + ".nrrd")
-ui.setLastFolder(originalParent)
-ui.closeCurrentImage()
-ui.close()
-tempFileArray[0].delete()
-IJ.log("Finished 'Stack Nrrds'.\n")
+hasAccess = os.access(originalParent, os.W_OK)
+while hasAccess == False:
+	dialog = YesNoCancelDialog(IJ.getInstance(), "No write permissions", "You do not have permission to write into this folder. Choose another folder?")
+	if dialog.yesPressed():
+		originalParent = FolderDialog()
+		hasAccess = os.access(originalParent, os.W_OK)
+	else:
+		break
+if hasAccess():
+	dataFile = nw.save(images, originalParent, "stack_" + originalName + ".nrrd")
+	ui.setLastFolder(originalParent)
+	ui.closeCurrentImage()
+	ui.close()
+	tempFileArray[0].delete()
+IJ.log("Finished 'Stack Nrrds'.\n");
+
 
