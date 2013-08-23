@@ -41,8 +41,7 @@ def FolderDialog(title, folder):
   folder = fc.getSelectedFile();
   path = os.path.join(folder.getParent(), folder.getName())
   return path
-  
-
+ 
 def checkFolder(folder, times, root):
 	filenames = os.listdir(folder)
 	for i in range(len(filenames)):
@@ -57,12 +56,14 @@ def checkFolder(folder, times, root):
     				imReader = nrimsData.Mims_Reader(imFile)
     				duration = imReader.getDurationD()
     				times[shortfilepath] = duration
+    				imReader.close()
+				
+				
 	return times
 
 verbose = 1;
 IJ.log("\nStarting 'Grab MetaData'.")
 durations = dict()
-
 chosenFolder = FolderDialog("Choose directory to read .im metadata from", "/nrims/data/MIMS_DATA")
 start = time.time()
 durations = checkFolder(chosenFolder, durations, chosenFolder)
