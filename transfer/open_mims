@@ -67,4 +67,4 @@ function check_args () {
 
 check_args "$@"
 
-java -Xmx4072m -cp $IJ_PATH/plugins/Open_MIMS.jar:$IJ_PATH/ij.jar:$IJ_PATH/plugins/nrims_java_common.jar:$IJ_PATH/plugins/Turbo_Reg.jar:$IJ_PATH/plugins/swing-layout-1.0.3.jar:$IJ_PATH/plugins/jfreechart-1.0.13.jar:$IJ_PATH/plugins/jcommon-1.0.16.jar:$IJ_PATH/plugins/jcommon-1.0.16.jar:$IJ_PATH/plugins/junique-1.0.4.jar com.nrims.Converter "$@"
+java -Xmx4072m -cp $IJ_PATH/plugins/Open_MIMS.jar:$IJ_PATH/ij.jar:$IJ_PATH/plugins/nrims_java_common.jar:$IJ_PATH/plugins/Turbo_Reg.jar:$IJ_PATH/plugins/swing-layout-1.0.3.jar:$IJ_PATH/plugins/jfreechart-1.0.14.jar:$IJ_PATH/plugins/jcommon-1.0.17.jar:$IJ_PATH/plugins/junique-1.0.4.jar:$IJ_PATH/plugins/LibreOffice_Notes.jar com.nrims.Converter "$@"
