@@ -61,10 +61,24 @@ def checkFolder(folder, times, root):
 				
 	return times
 
+def getFolderList(path):
+  folders=[]
+  while 1:
+    path,folder=os.path.split(path)
+
+    if folder!="":
+      folders.append(folder)
+    else:
+      if path!="":
+        folders.append(path)
+        break
+  folders.reverse()
+  return folders
+
 verbose = 1;
 IJ.log("\nStarting 'Grab MetaData'.")
 durations = dict()
-chosenFolder = FolderDialog("Choose directory to read .im metadata from", "/nrims/data/MIMS_DATA")
+chosenFolder = FolderDialog("Choose directory to read .im metadata from", "/nrims/data/")
 start = time.time()
 durations = checkFolder(chosenFolder, durations, chosenFolder)
 end = time.time()
@@ -73,7 +87,13 @@ targetFolder = FolderDialog("Choose folder to save duration data in", "~")
 cfolder, cfilename = os.path.split(chosenFolder)
 with open(targetFolder + '/' + cfilename + '.csv', 'wb') as f:
     writer = csv.writer(f)
-    writer.writerow(["Folder", "Filename", "Duration (in s)"])
+    writer.writerow(["Path", "Filename", "Duration (in s)", "Collaborator", "EXP"])
     for key, value in durations.items():
     	folder, filename = os.path.split(key)
-   	writer.writerow([folder, filename, value])
+	folders = getFolderList(key)
+	collaborator = "None"
+	EXP = "None"
+	if (len(folders) > 2):
+	  collaborator = folders[1]
+          EXP = folders[2]
+   	writer.writerow([folder, filename, value, collaborator, EXP])
