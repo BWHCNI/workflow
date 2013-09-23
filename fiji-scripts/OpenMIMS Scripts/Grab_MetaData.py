@@ -2,6 +2,7 @@ from __future__ import with_statement
 import com.nrims as nrims
 import com.nrims.data as nrimsData
 import time
+from datetime import timedelta, datetime, date
 import java.io.File as File
 import java.util.ArrayList as ArrayList
 import java.lang.Integer as Integer
@@ -55,7 +56,10 @@ def checkFolder(folder, times, root):
 				imFile = File(filepath)
     				imReader = nrimsData.Mims_Reader(imFile)
     				duration = imReader.getDurationD()
-    				times[shortfilepath] = duration
+    				startdate = datetime.strptime(imReader.getSampleDate(), "%d.%m.%y")
+    				enddate = datetime.strptime(imReader.getSampleDate(), "%d.%m.%y") + timedelta(seconds=int(duration))
+    				uniquedays = abs(enddate-startdate).days
+    				times[shortfilepath] = [duration, startdate, enddate, uniquedays]
     				imReader.close()
 				
 				
@@ -87,13 +91,13 @@ targetFolder = FolderDialog("Choose folder to save duration data in", "~")
 cfolder, cfilename = os.path.split(chosenFolder)
 with open(targetFolder + '/' + cfilename + '.csv', 'wb') as f:
     writer = csv.writer(f)
-    writer.writerow(["Path", "Filename", "Duration (in s)", "Collaborator", "EXP"])
+    writer.writerow(["Path", "Filename", "Duration (in s)", "Collaborator", "EXP", "Start (D/M/Y)", "End (D/M/Y)", "Days ran"])
     for key, value in durations.items():
     	folder, filename = os.path.split(key)
 	folders = getFolderList(key)
-	collaborator = "None"
-	EXP = "None"
+	collaborator = "None";
+	EXP = "None";
 	if (len(folders) > 2):
 	  collaborator = folders[1]
           EXP = folders[2]
-   	writer.writerow([folder, filename, value, collaborator, EXP])
+   	writer.writerow([folder, filename, value[0], collaborator, EXP, value[1].strftime("%d/%m/%y"), value[2].strftime("%d/%m/%y"), value[3]+1])
