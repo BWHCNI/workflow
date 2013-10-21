@@ -97,7 +97,7 @@ for i in range(len(imFileNames)):
 	if i == 0:
 		originalParent = imFile.getParent()
 		originalName = os.path.splitext(imFile.getName())[0]
-	IJ.log("Summing file:" + imFileNames[i])
+	IJ.log("Summing file:" + imFileNames[i] + " , " + str(i+1) + " of " + str(len(imFileNames)))
 	name = os.path.splitext(imFile.getName())[0]
 	ui.openFile(imFile)
 	mimStack = ui.getmimsStackEditing()
@@ -119,7 +119,7 @@ tempFileArray = tempFiles.toArray()
 ui.openFile(tempFileArray[0])
 for i in range(len(tempFileArray)):
 	if i != 0:
-		IJ.log("Concating file " + str(i));
+		IJ.log("Concating file " + str(i) +" of " + str(len(tempFileArray)-1));
 		directory = tempFileArray[i].getParent()
 		name = tempFileArray[i].getName()
 		tempUi = nrims.UI()
@@ -159,7 +159,7 @@ while hasAccess == False:
 		hasAccess = os.access(originalParent, os.W_OK)
 	else:
 		break
-if hasAccess():
+if hasAccess:
 	dataFile = nw.save(images, originalParent, "stack_" + originalName + ".nrrd")
 	ui.setLastFolder(originalParent)
 	ui.closeCurrentImage()
