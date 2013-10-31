@@ -90,7 +90,7 @@ tempFiles = ArrayList()
 ui = nrims.UI()
 ui.show()
 verbose = 1;
-IJ.log("\nStarting 'Stack Nrrds'.")
+IJ.log("\nStarting 'Stack_Images'.")
 for i in range(len(imFileNames)):
 	imFile = File(imFileNames[i])
 	directory = imFile.getParent()
@@ -165,6 +165,6 @@ if hasAccess:
 	ui.closeCurrentImage()
 	ui.close()
 	tempFileArray[0].delete()
-IJ.log("Finished 'Stack Nrrds'.\n");
+IJ.log("Finished 'Stack_Images'.\n");
 
 
