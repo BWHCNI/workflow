@@ -68,7 +68,7 @@ def FolderDialog():
   fc.setMultiSelectionEnabled(False)
   fc.setDialogTitle("Choose a folder")
   fc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-  fc.setAcceptAllFileFilterUsed(false);
+  fc.setAcceptAllFileFilterUsed(False);
   sdir = OpenDialog.getDefaultDirectory()
   if sdir!=None:
     fdir = File(sdir)
@@ -77,7 +77,7 @@ def FolderDialog():
   returnVal = fc.showOpenDialog(IJ.getInstance())
   if returnVal!=JFileChooser.APPROVE_OPTION:
     return
-  folder = chooser.getSelectedFile();
+  folder = fc.getSelectedFile();
   path = os.path.join(folder.getParent(), folder.getName())
   return path
   
