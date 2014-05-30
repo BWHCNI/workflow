@@ -1,0 +1,164 @@
+#!/usr/bin/python
+import sys
+import shutil
+import os
+import time
+import datetime
+from datetime import date
+from datetime import datetime
+import argparse
+
+#////////////////////////////
+# copyFile: Copy/Overwrite a file and change it's permissions
+#////////////////////////////
+def copyFile(srcf, dstf, name):
+  sourceName = srcf+ "/"+ name
+  targetName = dstf+"/"+name
+  try:
+    shutil.copy2(sourceName, dstf)
+  except:
+    print >> sys.stderr, "Unexpected error: "+ str(sys.exc_info()[0])+ " \nFailed to copy "+ sourceName+ "\n"
+    return False;
+  try:
+    os.chmod(targetName, 0644);
+    return True;
+  except IOError as e:
+    print >> sys.stderr, "I/O error({0}): {1}".format(e.errno, e.strerror) + "\nFailed to change permissions of "+ sourceName + "\n"
+    return False;
+  except:
+    print >> sys.stderr, "Unexpected error: " + str(sys.exc_info()[0]) + "\nFailed to change permissions of "+ sourceName + "\n"
+    return False;
+
+#////////////////////////////
+# copyFolder: Recursively loop through folders and copy contents
+#////////////////////////////
+def copyFolder(sourceFolder, targetFolder, overwriteAll, orgout, newout, orgerr, newerr):
+  print "Starting copy of",sourceFolder,"into",targetFolder,"\n"
+  #get all files in source and target folders
+  sourceFiles = os.listdir(sourceFolder)
+  targetFiles = os.listdir(targetFolder)
+  if (len(sourceFiles) is 0):
+    print sourceFolder,"is empty\n"
+    print >> sys.stderr, "Error: " + sourceFolder + "is empty\n"
+  #loop through the files to copy
+  for sourceFile in sourceFiles:
+    sourceFilePath = sourceFolder + "/" + sourceFile
+    targetFilePath = targetFolder + "/" + sourceFile
+    if sourceFile[-1] != "~":
+      #trigger recursive function if a folder
+      if os.path.isdir(sourceFilePath):
+        #if folder does not exist then create it
+        if sourceFile not in targetFiles:
+          os.makedirs(targetFilePath)
+        copyFolder(sourceFilePath, targetFilePath, False, orgout, newout, orgerr, newerr)
+      elif sourceFile in targetFiles:
+        #file exists already
+        if not overwriteAll:
+          decision = False
+	  #trigger overwrite prompt, since this is a file and we are not overwriting all
+          while decision != True:
+            sys.stdout = orgout
+            sys.stderr = orgerr
+	    choice = raw_input("Overwrite " + targetFilePath + " (Press A to overwrite all in folder)? Press Y/N/A: ")
+            sys.stdout = newout
+            sys.stderr = newerr
+	    if choice == 'Y' or choice == 'y':
+              #regardless of overwrite all choice, overwrite the selected file
+              if(copyFile(sourceFolder, targetFolder, sourceFile)):
+                print "Overwrote", targetFilePath, "with", sourceFilePath, "\n"
+                decision = True
+            elif choice == 'A' or choice == 'a':
+              overwriteAll = True;
+	      if (copyFile(sourceFolder, targetFolder, sourceFile)):
+                print "Overwrote", targetFilePath, "with", sourceFilePath, "\n"
+                decision = True
+            elif choice == 'N' or choice == 'n':
+              decision = True
+              print "Skipped", sourceFilePath, "\n"
+            else:
+              sys.stdout = orgout
+              sys.stderr = orgerr
+              print "Invalid input."
+              sys.stdout = newout
+              sys.stderr = newerr
+        else:
+	  #Overwrite all is in effect, no prompting user
+	  if (copyFile(sourceFolder, targetFolder, sourceFile)):
+	    print "Overwrote", targetFilePath, "with", sourceFilePath, "\n"
+      else:
+        #is a file and does not exist in targetFolder
+        if(copyFile(sourceFolder, targetFolder, sourceFile)):
+          print "Copied", sourceFilePath, "to", targetFilePath, "\n"
+  try:
+    os.chmod(targetFolder, 0755);
+  except IOError as e:
+    print >> sys.stderr, "I/O error({0}): {1}".format(e.errno, e.strerror),"\nFailed to change permissions of", targetFolder, "\n"
+  except:
+    print >> sys.stderr, "Unexpected error:", str(sys.exc_info()[0]), "\nFailed to change permissions of", targetFolder, "\n"
+  if (len(sourceFiles) > 0):
+    print "Finished copying contents of", sourceFolder, "into", targetFolder, "\n"
+  return 0;
+
+#////////////////////////////
+# Main running method
+#////////////////////////////
+#parser = argparse.ArgumentParser(description='Copy contents of one folder into another and modify permission of all files. If file exists in both folders, then target can be copied over or copying can be skipped.')
+#parser.add_argument('source folder', metavar='folder1', type=str, nargs='+', help='folder which is being copied from')
+#parser.add_argument('target folder', metavar='folder2', type=str, nargs='+', help='folder being copied to')
+
+#args = parser.parse_args()
+#print args.accumulate(args.integers)
+sf = sys.argv[1]
+tf = sys.argv[2]
+if not os.path.isdir(sf):
+  print >> sys.stderr, "Error: Source directory", sf, "not a directory\n"
+  sys.exit()
+elif not os.path.isdir(tf):
+  if os.path.isdir(os.path.split(os.path.abspath(tf))[0]):
+    decision = False
+    while decision != True:
+      choice = raw_input(tf + " is empty. Create new folder or abort? Y/N: ")
+      if choice == 'Y' or choice == 'y':
+        os.makedirs(tf)
+        decision = True;
+      elif choice == 'N' or choice == 'n':
+        print "Script aborted."
+        sys.exit()
+      else:
+        print "Invalid input."
+  else:
+    print "Error: no such parent directory", os.path.split(os.path.abspath(tf))[0], ", script aborted."
+    sys.exit()
+#create the filename of format parent_name-YYYY-MM-DD
+iso = date.today().isoformat()
+name = os.path.dirname(os.path.abspath(tf))
+folder = os.path.basename(os.path.abspath(tf))
+logname = name + "_" + folder + "-" + iso
+#save the original stdout and stderr
+saveout = sys.stdout
+saveerr = sys.stderr
+#open by appending to file
+fsock = open("/nrims/common/transfer_cfg/log/staging/" + os.path.basename(logname) + ".log", "a")
+ferr = open("/nrims/common/transfer_cfg/log/staging/" + os.path.basename(logname) + "-err.log", "a")
+#set stdout and stderr to log files  
+sys.stdout = fsock
+sys.stderr = ferr
+path = str(os.path.abspath(__file__))
+#print header info
+print "Starting " + path +" now " + datetime.now().isoformat(' ')+ "\n"
+print "SOURCE FOLDER: " + os.path.abspath(sf) + "\n"
+print "TARGET FOLDER: " + os.path.abspath(tf) + "\n"
+print >> sys.stderr,"Starting " + path + " now " + datetime.now().isoformat(' ')+ "\n"
+print >> sys.stderr,"SOURCE FOLDER: " + os.path.abspath(sf) + "\n"
+print >> sys.stderr,"TARGET FOLDER: " + os.path.abspath(tf) + "\n"
+#main recursive method
+copyFolder(os.path.abspath(sf), os.path.abspath(tf), False, saveout, fsock, saveerr, ferr)
+print "******************done***************\n"
+print >> sys.stderr, "******************done***************\n"
+#reset stdout and stderr to originals
+sys.stdout = saveout
+sys.stderr = saveerr
+#close and save logs
+fsock.close()
+ferr.close()
+sys.exit()

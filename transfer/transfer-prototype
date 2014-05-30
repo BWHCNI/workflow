@@ -21,9 +21,9 @@
 
 PATH=/nrims/common/scripts:$PATH				# set PATH
 EXTENSION=.im										# file types to be copies
-FILTER_STRING3=test								# filter string (do not copy)
-FILTER_STRING1=imp								# filter string (do not copy)
-FILTER_STRING2=presputter						# filter string (do not copy)
+FILTER_STRING1=test								# filter string (do not copy)
+FILTER_STRING2=imp								# filter string (do not copy)
+FILTER_STRING3=presputter						# filter string (do not copy)
 PNG_EXTENSION=".png"
 NRRD_EXTENSION=".nrrd"
 TRACK_DEFAULT=26
@@ -105,20 +105,20 @@ function check_args () {
 	BLACKLISTFILE=$OUTPUT_DIR/.blacklist
 	if [ ! -d $INPUT_DIR ] ; then
    	echo "SOURCE not a valid directory."
-        echo "   SOURCE = $SOURCE"
+      	echo "   SOURCE = $SOURCE"
    	exit 0
 	fi
 	if [ ! -d $OUTPUT_DIR ]; then
    	echo "DESTINATION not a valid directory."
    	echo "   DESTINATION = $DESTINATION"
-	echo "Attempting to create $DESTINATION..."
-	mkdir -v -m 755 $DESTINATION
-	if [ $? = 0 ]; then
-		echo "Created $DESTINATION"
-	else 
-		echo "Could not create $DESTINATION"
-		exit 0
-	fi
+        echo "Attempting to create $DESTINATION..."
+        mkdir -v -m 755 $DESTINATION
+        if [ $? = 0 ]; then
+                echo "Created $DESTINATION"
+        else 
+                echo "Could not create $DESTINATION"
+                exit 0
+        fi
 	fi
 	if [ -e $BLACKLISTFILE ]; then
 	   blacklist_exists=true
@@ -311,8 +311,8 @@ function copy_files () {
       	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING2}\" in file name, skipping..."
       	
     	## Do not copy files with FILTER_STRING3 in their name.   
-   	#elif [[ "$FILE_NAME" =~ "${FILTER_STRING3}" ]]; then
-      	#echo "$FILE_NAME  --->  Contains \"${FILTER_STRING3}\" in file name, skipping..."
+   	elif [[ "$FILE_NAME" =~ "${FILTER_STRING3}" ]]; then
+      	echo "$FILE_NAME  --->  Contains \"${FILTER_STRING3}\" in file name, skipping..."
       	
     	## Do not copy if filename contained in .blacklist file. 
     	elif $blacklist_exists && grep -q $FILE_NAME_PREFIX $BLACKLISTFILE; then

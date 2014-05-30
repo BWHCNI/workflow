@@ -96,9 +96,6 @@ function check_args () {
    	exit 0
 	fi
 
-	## Check DISPLAY
-	echo "DISPLAY = $DISPLAY"
-
 	## Set the source and destination directory
 	INPUT_DIR=$SOURCE
 	OUTPUT_DIR=$DESTINATION
@@ -137,7 +134,7 @@ function generate_nrrds () {
 			file_basename=$(basename $image_file_name)
   		file_name_prefix=$(basename $file_basename $EXTENSION)  	
 	   	nrrd_file_name=${file_name_prefix}.nrrd
-	   	cmd_command="open_mims"
+	   	cmd_command="open_mims_headless"
 	   	if [ ! -e $OUTPUT_DIR/$nrrd_file_name ]; then  
 	   	   if $blacklist_exists && grep -q ${file_name_prefix}"\." $BLACKLISTFILE; then
   				   echo "$nrrd_file_name  --->  Listed in .blacklist file, skipping..."
@@ -178,14 +175,14 @@ function generate_pngs () {
 		   fi
 		   filelist=( $(find $OUTPUT_DIR -name "${nrrd_file_prefixname}_[m,hsi]*$PNG_EXTENSION") )
 		   if [ ${#filelist[@]} -eq 0 ] || $PNG_OVERWRITE ; then
-		     cmd_command="open_mims -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
+		     cmd_command="open_mims_headless -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
 			   echo "$cmd_command" 
 			   $cmd_command
 			   new_data=true
    	   elif [ $nrrd_file_name -nt ${filelist[0]} ]; then
       	 echo "$nrrd_file_basename is newer then the pngs for that file... deleting png's and regenerating."
       	 find $OUTPUT_DIR -name "${nrrd_file_prefixname}_[m,hsi]*$PNG_EXTENSION" -print0 | xargs -0 -I{} rm {}
-      	 cmd_command="open_mims -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
+      	 cmd_command="open_mims_headless -pngs_only -properties $CONFIG_FILE $nrrd_file_name"
          echo "$cmd_command" 
 			   $cmd_command
 			   new_data=true
@@ -382,7 +379,7 @@ if $RUN; then
 	  fi
 	  copy_config_file
 	fi
-	chmod -R 'go-w' $OUTPUT_DIR
+	chmod -R go-w $OUTPUT_DIR
 else
    echo "RUN = false"
 fi
