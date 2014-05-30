@@ -40,6 +40,9 @@ Examples:
          generate_html_report -f Lee_Exp21.html -l images/LEE/EXP14 ./*.nrrd
          generate_html_report -f Lee_Exp21.html -l images/LEE/EXP14 -t "This is a test report" ./*.nrrd
 
+Note: Order of images in the html file will match the order the files were passes to the script. 
+Tip: Replace the './*.nrrd' above with '$(ls -r ./*.nrrd)' to reverse order of images in the html file.
+
 EOF
 }
 
@@ -190,7 +193,7 @@ function generate_report () {
    	m=0
    	echo "<table class=\"image\">" >> $INDEX_FILE	  
    	echo "<tr>" >> $INDEX_FILE
-   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*hsi${PNG_EXTENSION}" | sort -V); do 
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*hsi*${PNG_EXTENSION}" | sort -V); do 
    	  echo "<td valign=\"top\"><img alt=\"$abs_png_name\" src=\"data:image/png;base64," >> $INDEX_FILE
    	  echo "$(base64 $abs_png_name)\" />" >> $INDEX_FILE
 			echo "</td>" >> $INDEX_FILE
@@ -199,7 +202,7 @@ function generate_report () {
 			mass_name_array[$m]=$mass
    	  ((m = m + 1 ))     
    	done
-   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*sum${PNG_EXTENSION}" | sort -V); do
+   	for abs_png_name in $(find $DIR -name "${file_name_prefix}_m*sum*${PNG_EXTENSION}" | sort -V); do
    	  echo "<td valign=\"top\"><img alt=\"test\" src=\"data:image/png;base64," >> $INDEX_FILE
    	  echo "$(base64 $abs_png_name)\"/>" >> $INDEX_FILE
 			echo "</td>" >> $INDEX_FILE
@@ -225,15 +228,17 @@ function generate_report () {
 
 	echo "</body>" >> $INDEX_FILE
 	echo "</html>" >> $INDEX_FILE
+	chmod go-w $INDEX_FILE
 }
 
 DIR=$(pwd)
 DIRNAME=$(basename $DIR)
 INDEX_FILE=$DIR/$DIRNAME.html
+echo "INDEX_FILE = $INDEX_FILE"
 CHANGE_LINKS=false
 LINK_ROOT=""
 #CPL_ROOT="/nrims/home3/cpl/JASON/"
-CR_ROOT="/nrims/home3/cpl/JASON/"
+CR_ROOT="/nrims/data/MIMS_DATA/"
 TITLE=""
 while getopts “hf:l:t:” OPTION
 do
@@ -251,6 +256,7 @@ do
       l)
          CHANGE_LINKS=true
          LINK_ROOT=$OPTARG
+	 echo "Setting LINK_ROOT to $LINK_ROOT"
          [[ $LINK_ROOT != */ ]] && LINK_ROOT="$LINK_ROOT"/       
          ;;
       ?)
