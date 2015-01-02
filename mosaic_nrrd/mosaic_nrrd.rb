@@ -406,9 +406,12 @@ def set_positions_strings(files, file_out, tmp_out_file, prototype)
   ## Create the new header.
   header = IO.popen("unu head \"#{tmp_out_file}\"") {|f| f.read }
   data = IO.popen("unu data #{tmp_out_file}") {|f| f.read }
-
+  
+  #method is gone?
+  #header.to_a()
+  meta = header.lines()
   File.open(file_out, 'w') {|f|
-  header.each_line() do |line|
+  meta.each do |line|
     if line.start_with?("Mims_position:=")
        f.write("Mims_position:="+pos_x.to_s()+","+pos_y.to_s())
        f.write("\n")
