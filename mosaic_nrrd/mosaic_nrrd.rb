@@ -477,7 +477,7 @@ def main(args)
             "  (A text file containg input nrrd filenames; columns tab-separated, rows newline-separated)") { |f| options[:layout] = f }
 
     # DJ: 09/17/2014 : to reverse option
-    opts.on("-r", "--reverse", "Reverse the tile columns ('fluid mode only')") { |r| options[:reverse] = true}
+    opts.on("-r", "--reverse", "Reverse the tile rows ('fluid mode only')") { |r| options[:reverse] = true}
 
     opts.on("-o", "--output output_filename", "Specify output nrrd file.") { |f| options[:file_out] = f }
     opts.on_tail("-h", "--help", "Show this help message.") {STDERR.puts opts; exit}
