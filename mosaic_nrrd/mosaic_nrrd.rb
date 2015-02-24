@@ -296,7 +296,7 @@ end
 ## Return array of relative (to top left) horizontal and 
 ## vertical positions, in pixels, for the given nrrd files.
 ###############################################################
-def get_pixel_positions(files, prototype)
+def get_pixel_positions(files, prototype, reverse) ## DJ:17/09/2014 : "reverse" argument added
   positions    = []
   um_per_px    = []
   
@@ -304,12 +304,20 @@ def get_pixel_positions(files, prototype)
   if prototype
     horizontal_direction = -1 
   end
+
+  # DJ: 09/17/2014
+  vertical_direction = 1
+  if reverse
+    vertical_direction = -1 
+  end
       
   files.each do |file|
     mims = Nrrd.head(file)[:meta]
     positions << mims["Mims_position"].split(',').reverse.map{|c| c.to_i}
 
     positions.last[0] *= horizontal_direction
+    positions.last[1] *= vertical_direction  ## DJ: 09/14/2014
+
     um_per_px << mims["Mims_pixel_width"].to_f/1000
   end
 
@@ -323,8 +331,8 @@ end
 ###############################################################
 ## Return array of min and max strings for padding the given nrrd files.
 ###############################################################
-def get_pad_values(files, compress, prototype)
-  pos_pixels = get_pixel_positions(files, prototype)
+def get_pad_values(files, compress, prototype, reverse) ## DJ:17/09/2014 : "reverse" argument added
+  pos_pixels = get_pixel_positions(files, prototype, reverse) ## DJ:17/09/2014 : "reverse" argument added
   max_px     = pos_pixels.transpose.map{|x| x.sort.last}  
   maxes      = files.map { |f| Nrrd.head(f)[:nrrd]["sizes"].split(' ').map{|s| s.to_i - 1} }
   max_planes = 0
@@ -406,12 +414,9 @@ def set_positions_strings(files, file_out, tmp_out_file, prototype)
   ## Create the new header.
   header = IO.popen("unu head \"#{tmp_out_file}\"") {|f| f.read }
   data = IO.popen("unu data #{tmp_out_file}") {|f| f.read }
-  
-  #method is gone?
-  #header.to_a()
-  meta = header.lines()
+  header.to_a()
   File.open(file_out, 'w') {|f|
-  meta.each do |line|
+  header.each do |line|
     if line.start_with?("Mims_position:=")
        f.write("Mims_position:="+pos_x.to_s()+","+pos_y.to_s())
        f.write("\n")
@@ -447,7 +452,7 @@ def mosaic(opts)
     files2 = normalize(files2, opts)
     tile(files2, opts[:file_out])
   else
-    pads = get_pad_values(opts[:files], opts[:compress], opts[:prototype])
+    pads = get_pad_values(opts[:files], opts[:compress], opts[:prototype], opts[:reverse]) ## DJ:09/17/2014 : "opts[:reverse]" argument was added.
     nrrd_files = group_masses(opts[:files], opts[:masses])    
     normalize_files = normalize([nrrd_files], opts)[0]
     files_to_delete = normalize_files.dup  
@@ -470,6 +475,10 @@ def main(args)
     opts.on("-s", "--[no-]scale", "Scale counts by number of planes in each input file.") { |s| options[:scale_by_planes] = s }
     opts.on("-l", "--layout layout_filename", "Specify grid layout file.",
             "  (A text file containg input nrrd filenames; columns tab-separated, rows newline-separated)") { |f| options[:layout] = f }
+
+    # DJ: 09/17/2014 : to reverse option
+    opts.on("-r", "--reverse", "Reverse the tile columns ('fluid mode only')") { |r| options[:reverse] = true}
+
     opts.on("-o", "--output output_filename", "Specify output nrrd file.") { |f| options[:file_out] = f }
     opts.on_tail("-h", "--help", "Show this help message.") {STDERR.puts opts; exit}
   end
@@ -492,6 +501,11 @@ def main(args)
   
   if options[:prototype].nil? || options[:type] == :grid
      options[:prototype] = false
+  end  
+
+  ## DJ: 09/17/2014
+  if options[:reverse].nil? || options[:type] == :grid
+     options[:reverse] = false
   end  
   
   options[:layout] ||= "grid.txt" if options[:type] == :grid
