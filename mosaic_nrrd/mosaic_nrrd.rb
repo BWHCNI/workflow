@@ -414,7 +414,13 @@ def set_positions_strings(files, file_out, tmp_out_file, prototype)
   ## Create the new header.
   header = IO.popen("unu head \"#{tmp_out_file}\"") {|f| f.read }
   data = IO.popen("unu data #{tmp_out_file}") {|f| f.read }
+  
   header.to_a()
+  # to_a() depricated in ruby 1.9
+  # this works in quick test
+  # header = Array(header)
+  # need to test a little more before changing, maybe add a version check
+
   File.open(file_out, 'w') {|f|
   header.each do |line|
     if line.start_with?("Mims_position:=")
