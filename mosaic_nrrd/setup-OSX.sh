@@ -6,10 +6,10 @@ cd /tmp/
 # Github point, need to grab ../raw/master/whatever/file
 # NOT ../blob/master/whatever/file
 echo -e "Downloading mosaic_nrrd.rb..."
-wget https://github.com/NRIMS/workflow/raw/master/mosaic_nrrd/mosaic_nrrd.rb
+curl https://github.com/NRIMS/workflow/raw/master/mosaic_nrrd/mosaic_nrrd.rb > mosaic_nrrd.rb
 
 echo -e "Downloading unu from mosaic_nrrd..."
-wget https://github.com/NRIMS/workflow/raw/master/mosaic_nrrd/unu-osx
+curl https://github.com/NRIMS/workflow/raw/master/mosaic_nrrd/unu-osx > unu-osx
 
 # This gets you the page, not the file
 # wget https://github.com/NRIMS/workflow/blob/master/mosaic_nrrd/unu
