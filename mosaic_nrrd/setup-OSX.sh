@@ -11,6 +11,17 @@ curl https://raw.githubusercontent.com/NRIMS/workflow/master/mosaic_nrrd/mosaic_
 echo -e "Downloading unu from mosaic_nrrd..."
 curl https://raw.githubusercontent.com/NRIMS/workflow/master/mosaic_nrrd/unu-osx > unu-osx
 
+if [ "$(uname)" == "Darwin" ]; then
+    # Do something under Mac OS X platform
+    echo -e "Downloading OS X unu from mosaic_nrrd..."
+    curl https://raw.githubusercontent.com/NRIMS/workflow/master/mosaic_nrrd/unu-osx > unu
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+    # Do something under GNU/Linux platform
+    echo -e "Downloading Linux 64b unu from mosaic_nrrd..."
+    curl https://raw.githubusercontent.com/NRIMS/workflow/master/mosaic_nrrd/unu > unu
+fi
+
+
 # This gets you the page, not the file
 # wget https://github.com/NRIMS/workflow/blob/master/mosaic_nrrd/unu
 
@@ -18,7 +29,7 @@ echo -e "Create '/usr/local/bin/' (Requires sudo)"
 sudo mkdir -p /usr/local/bin/
 echo -e "Move files to /usr/local/bin"
 sudo mv mosaic_nrrd.rb /usr/local/bin/mosaic_nrrd
-sudo mv unu-osx /usr/local/bin/unu
+sudo mv unu /usr/local/bin/unu
 
 echo -e "Set permisions"
 sudo chmod 755 /usr/local/bin/mosaic_nrrd
