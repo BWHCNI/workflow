@@ -1,15 +1,11 @@
 #!/bin/bash
 
-
 cd /tmp/
 
 # Github point, need to grab ../raw/master/whatever/file
 # NOT ../blob/master/whatever/file
 echo -e "Downloading mosaic_nrrd.rb..."
 curl https://raw.githubusercontent.com/NRIMS/workflow/master/mosaic_nrrd/mosaic_nrrd.rb > mosaic_nrrd.rb
-
-echo -e "Downloading unu from mosaic_nrrd..."
-curl https://raw.githubusercontent.com/NRIMS/workflow/master/mosaic_nrrd/unu-osx > unu-osx
 
 if [ "$(uname)" == "Darwin" ]; then
     # Do something under Mac OS X platform
