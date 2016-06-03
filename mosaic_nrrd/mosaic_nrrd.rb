@@ -415,33 +415,39 @@ def set_positions_strings(files, file_out, tmp_out_file, prototype)
   header = IO.popen("unu head \"#{tmp_out_file}\"") {|f| f.read }
   data = IO.popen("unu data #{tmp_out_file}") {|f| f.read }
   
-  header.to_a()
+  #Works in v1.8
+  #header.to_a()
   # to_a() depricated in ruby 1.9
   # this works in quick test
-  # header = Array(header)
+  headerlines = header.split("\n")
   # need to test a little more before changing, maybe add a version check
 
   File.open(file_out, 'w') {|f|
-  header.each do |line|
+  puts "-----------------------------------------"
+
+  headerlines.each do |line|
+    #puts line
     if line.start_with?("Mims_position:=")
        f.write("Mims_position:="+pos_x.to_s()+","+pos_y.to_s())
        f.write("\n")
     elsif line.start_with?("Mims_tile_positions:=")
        # do nothing
     elsif line.start_with?("Mims_raster:=")
+       #puts "RASTER!"
        f.write("Mims_raster:="+raster_x.to_s()+","+raster_y.to_s())
        f.write("\n")
     else
-       f.write("#{line}")   
+       f.write("#{line}\n")   
     end    
   end
+
   if prototype
-    f.write("Mims_prototype:=true")
-    f.write("\n")
+    f.write("Mims_prototype:=true\n")
   end
   f.write("Mims_tile_positions:="+locations)
   f.write("\n")
   f.write("\n")
+  puts "-----------------------------------------"
   f.write(data)
   }
 end
