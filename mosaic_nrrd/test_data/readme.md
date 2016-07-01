@@ -8,5 +8,6 @@ File info:
 should result in a 2x2 mosaic
 
 mosaic_fluid.nrrd was made with '-t fluid' only
+
 mosaic_grid.nrrd was made with '-l grid.txt' only
 
