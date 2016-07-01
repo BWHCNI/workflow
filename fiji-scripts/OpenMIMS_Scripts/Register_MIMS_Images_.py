@@ -1,6 +1,10 @@
+import ij as ij
+import ij.IJ as IJ
+import com.nrims as nrims
+
 targets = []
 sources = []
-import com.nrims as nrims
+
 ui = nrims.UI.getInstance()
 verbose = 1
 IJ.log("Starting OpenMIMS Image Registration script")
@@ -57,7 +61,7 @@ else:
     macrocmd = macrocmd + " -affine"+ sources[0]  + targets[0]+ sources[1] + targets[1] + sources[2] + targets[2] +" -showOutput"
     IJ.log("Running affine transform on " + source.getTitle())
     IJ.run("TurboReg ",  macrocmd)
-    output = WindowManager.getImage("Output")
+    output = ij.WindowManager.getImage("Output")
     source.setProcessor(output.getProcessor())
     output.close()
   IJ.log("Registration of all images complete.")
