@@ -1,0 +1,28 @@
+		nano50 \ IMAGE \ Sample :  
+
+						01.02.18 17:05
+Stage Position   : x=-5227  um  y=-6381  um  z=5100   um
+Raw data file    : D:\MIMS_Data\Narendra\HLDR5-15NLeu\108-surveyON_4.im
+Slit Preset : D:\Cameca NanoSIMS Data\Isf\Cs+8kV-111717.isf (Motors [D1-3])
+Lens Preset : D:\Cameca NanoSIMS Data\Isf\Cs+8kV-111717.isf (High Current [Normal-High])
+Pre Sputtering Time (s) : 98.3.
+               Raster (um) : 50.0
+               Slit Preset : D:\Cameca NanoSIMS Data\Isf\Cs+8kV-111717.isf (Motors [D1-1])
+               Lens Preset : D:\Cameca NanoSIMS Data\Isf\Cs+8kV-111717.isf (High Current [1.5nA D1])
+Frame:1,1-256,256 / Raster:50.0um
+Tuning Mode: Multicollection
+Regulation Mode: NMR
+Check every (fr.): 0
+
+Primary Current before acq :   45470 pA / after acq :   45710 pA
+
+
+Mass# Species        Mass  Det.   Tc(s)   BField    Radius  Peak# RefPeak# Method
+   1  12C2          24.040 Tr1   98.304  1735.811   363.734                                     
+   2  12C 13C       25.006 Tr2   98.304  1735.811   370.970                                     
+   3  12C 14N       25.972 Tr3   98.304  1735.811   378.067                                     
+   4  12C 15N       26.997 Tr4   98.304  1735.811   385.457                                     
+   5  31P           31.046 Tr5   98.304  1735.811   413.347                                     
+   6  32S           31.994 Tr6   98.304  1735.811   419.611                                     
+
+
